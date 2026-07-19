@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Alert, RefreshControl, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import { can } from '@/lib/privileges';
+import { exportCSV } from '@/lib/export';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, SearchBar, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
 
@@ -68,12 +70,20 @@ export default function Fees() {
     finally { setSaving(false); }
   }
 
+  async function doExport() {
+    try {
+      await exportCSV('fees', ['Invoice', 'Student', 'Total', 'Paid', 'Due', 'Status'],
+        filtered.map(i => [i.invoiceNo, i.studentName, i.total ?? 0, i.amountPaid ?? 0, (i.total ?? 0) - (i.amountPaid ?? 0), i.status ?? 'pending']));
+    } catch (e: any) { Alert.alert('Export failed', e.message); }
+  }
+
   if (loading) return <Screen title={t('nav.fees', 'Fees')} colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
 
   const totalDue = filtered.reduce((a, i) => a + Math.max(0, (i.total ?? 0) - (i.amountPaid ?? 0)), 0);
 
   return (
-    <Screen title={t('nav.fees', 'Fees')} subtitle={`₹${totalDue.toLocaleString('en-IN')} outstanding`} colors={rt.gradient} onBack={() => router.back()} scroll={false}>
+    <Screen title={t('nav.fees', 'Fees')} subtitle={`₹${totalDue.toLocaleString('en-IN')} outstanding`} colors={rt.gradient} onBack={() => router.back()} scroll={false}
+      right={<TouchableOpacity onPress={doExport} style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="share-outline" size={22} color="#fff" /></TouchableOpacity>}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
         <SearchBar value={q} onChangeText={setQ} placeholder="Student, invoice no…" />
         <ChipPicker label="Status" options={['', 'pending', 'partial', 'paid', 'overdue']} value={fStatus} onChange={setFStatus} />
