@@ -6,12 +6,26 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "splash": { "backgroundColor": "#6D3CF0", "resizeMode": "contain" },
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.qmsofts.school" },
-    "android": { "package": "com.qmsofts.school" },
-    "plugins": ["expo-router", "expo-secure-store", "expo-font"],
+    "splash": {
+      "backgroundColor": "#6D3CF0",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.qmsofts.school"
+    },
+    "android": {
+      "package": "com.qmsofts.school",
+      "versionCode": 1
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font"
+    ],
     "extra": {
-      "apiBase": "https://schoolsaas.qmsofts.com"
-    }
+      "apiBase": "https://schoolnet-production-ac7d.up.railway.app"
+    },
+    "owner": "schooldotnet"
   }
 }
