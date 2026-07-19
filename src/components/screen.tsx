@@ -214,3 +214,32 @@ const styles = StyleSheet.create({
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sheetTitle: { ...font.h3, color: colors.ink },
 });
+
+// ── Collapsible section (for long forms like the student form) ──────────────
+export function Collapsible({
+  title, subtitle, defaultOpen, children,
+}: {
+  title: string; subtitle?: string; defaultOpen?: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = React.useState(!!defaultOpen);
+  return (
+    <View style={collStyles.wrap}>
+      <TouchableOpacity onPress={() => setOpen(o => !o)} style={collStyles.head} activeOpacity={0.7}>
+        <View style={{ flex: 1 }}>
+          <Text style={collStyles.title}>{title}</Text>
+          {subtitle ? <Text style={collStyles.sub}>{subtitle}</Text> : null}
+        </View>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={colors.slate} />
+      </TouchableOpacity>
+      {open ? <View style={collStyles.body}>{children}</View> : null}
+    </View>
+  );
+}
+
+const collStyles = StyleSheet.create({
+  wrap: { backgroundColor: colors.card, borderRadius: radius.md, marginBottom: spacing.sm, overflow: 'hidden' },
+  head: { flexDirection: 'row', alignItems: 'center', padding: spacing.md },
+  title: { ...font.title, color: colors.ink },
+  sub: { ...font.label, color: colors.muted, marginTop: 1 },
+  body: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
+});
