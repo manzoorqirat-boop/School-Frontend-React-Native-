@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { API } from '@/lib/api';
 import { themeForRole, colors, spacing, font, radius } from '@/theme';
 import { GradientHeader, StatTile, Card, Chip } from '@/components/ui';
+import { Field, ChipPicker, FormModal } from '@/components/screen';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Superadmin() {
   const { user, signOut } = useAuth();
@@ -21,14 +23,39 @@ export default function Superadmin() {
 
   const active = schools.filter(s => s.isActive).length;
 
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState<any>({ type: 'k12' });
+  const [saving, setSaving] = useState(false);
+
+  async function createSchool() {
+    if (!form.name || !form.slug || !form.adminUsername || !form.adminPassword) {
+      Alert.alert('Missing', 'School name, code, admin username and password are required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await API.post('/api/schools', form);
+      setSchools(prev => [res.school, ...prev]);
+      setFormOpen(false);
+      setForm({ type: 'k12' });
+      Alert.alert('School created', `Admin login: ${res.admin?.username}`);
+    } catch (e: any) { Alert.alert('Create failed', e.message); }
+    finally { setSaving(false); }
+  }
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={rt.accent} />}>
       <GradientHeader colors={rt.gradient} subtitle={rt.label} title="Schools"
-        right={<TouchableOpacity onPress={signOut} style={styles.avatar}>
-          <Text style={styles.avatarText}>{(user?.name ?? 'U').slice(0,2).toUpperCase()}</Text>
-        </TouchableOpacity>} />
+        right={<View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={() => setFormOpen(true)} style={styles.avatar}>
+            <Ionicons name="add" size={22} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={signOut} style={styles.avatar}>
+            <Text style={styles.avatarText}>{(user?.name ?? 'U').slice(0,2).toUpperCase()}</Text>
+          </TouchableOpacity>
+        </View>} />
       <View style={styles.statRow}>
         <StatTile label="Total Schools" value={schools.length} icon="business" tint={colors.amber} />
         <StatTile label="Active" value={active} icon="checkmark-circle" tint={colors.emerald} />
@@ -48,6 +75,20 @@ export default function Superadmin() {
         ))}
         {schools.length === 0 && <Text style={styles.empty}>No schools yet. Pull to refresh.</Text>}
       </View>
+
+      <FormModal visible={formOpen} title="New school" onClose={() => setFormOpen(false)}
+        onSubmit={createSchool} submitting={saving} submitLabel="Create School">
+        <Field label="School name *" value={form.name} onChangeText={(v: string) => setForm({ ...form, name: v })} />
+        <Field label="School code (slug) *" value={form.slug} autoCapitalize="none"
+          onChangeText={(v: string) => setForm({ ...form, slug: v.toLowerCase().replace(/[^a-z0-9-]/g, '') })} />
+        <ChipPicker label="Type" options={['k12', 'primary', 'secondary', 'college']} value={form.type ?? 'k12'} onChange={(v) => setForm({ ...form, type: v })} />
+        <Field label="Email" value={form.email} autoCapitalize="none" onChangeText={(v: string) => setForm({ ...form, email: v })} />
+        <Field label="Phone" value={form.phone} keyboardType="phone-pad" onChangeText={(v: string) => setForm({ ...form, phone: v })} />
+        <Text style={styles.formSection}>First admin account</Text>
+        <Field label="Admin username *" value={form.adminUsername} autoCapitalize="none" onChangeText={(v: string) => setForm({ ...form, adminUsername: v })} />
+        <Field label="Admin password *" value={form.adminPassword} secureTextEntry onChangeText={(v: string) => setForm({ ...form, adminPassword: v })} />
+        <Field label="Admin display name" value={form.adminName} onChangeText={(v: string) => setForm({ ...form, adminName: v })} />
+      </FormModal>
     </ScrollView>
   );
 }
@@ -60,4 +101,5 @@ const styles = StyleSheet.create({
   schoolName: { ...font.title, color: colors.ink },
   slug: { ...font.label, color: colors.muted, marginTop: 2 },
   empty: { ...font.body, color: colors.muted, textAlign: 'center', marginTop: spacing.xl },
+  formSection: { ...font.title, color: colors.primary, marginTop: spacing.sm },
 });
