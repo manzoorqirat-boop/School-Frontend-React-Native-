@@ -1,24 +1,40 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { useI18n } from '@/i18n';
 import { can } from '@/lib/privileges';
+import { useI18n } from '@/i18n';
 import { exportCSV } from '@/lib/export';
+import { translitEnToHi } from '@/lib/translit';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import {
-  Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal,
-} from '@/components/screen';
+import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal, Collapsible } from '@/components/screen';
 
 const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
 const SECTIONS = ['A','B','C','D','E'];
-const STATUS_TINT: Record<string, string> = { active: colors.emerald, inactive: colors.muted, graduated: colors.sky };
+const STATUS_TINT: Record<string, string> = { active: colors.emerald, inactive: colors.muted, graduated: colors.sky, transferred: colors.amber };
+const CATEGORIES = ['', 'GEN', 'OBC', 'SC', 'ST', 'EWS'];
+const RELIGIONS = ['', 'Hindu', 'Muslim', 'Sikh', 'Christian', 'Buddhist', 'Jain', 'Other'];
+const TRANSPORT = ['', 'self', 'school_bus', 'walk', 'other'];
+const BLOOD = ['', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+
+// Paired English + auto-Hindi input.
+function BilingualField({ label, en, hi, onEn, onHi }: {
+  label: string; en: string; hi: string; onEn: (v: string) => void; onHi: (v: string) => void;
+}) {
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput style={styles.input} value={en} onChangeText={onEn} placeholder="Type in English" placeholderTextColor={colors.muted} />
+      <TextInput style={[styles.input, styles.hiInput]} value={hi} onChangeText={onHi} placeholder="हिंदी (अपने आप)" placeholderTextColor={colors.muted} />
+    </View>
+  );
+}
 
 export default function Students() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, school } = useAuth();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
   const [all, setAll] = useState<any[]>([]);
@@ -28,18 +44,16 @@ export default function Students() {
   const [fClass, setFClass] = useState('');
   const [fStatus, setFStatus] = useState('');
 
-  // form
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<any>(null);
+  const manualHi = useRef<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
-    try {
-      const data = await API.get('/api/students?limit=2000');
-      setAll(data.items ?? []);
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    try { const data = await API.get('/api/students?limit=2000'); setAll(data.items ?? []); }
+    catch (e: any) { Alert.alert('Error', e.message); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -50,41 +64,65 @@ export default function Students() {
     if (fClass) list = list.filter(s => s.class === fClass);
     if (fStatus) list = list.filter(s => (s.status ?? 'active') === fStatus);
     if (q.trim()) {
-      const t = q.toLowerCase();
-      list = list.filter(s =>
-        [s.firstName, s.lastName, s.admissionNo, s.rollNo, s.fatherName, s.phone, s.fatherPhone]
-          .filter(Boolean).some((v: string) => String(v).toLowerCase().includes(t)));
+      const tt = q.toLowerCase();
+      list = list.filter(s => [s.firstName, s.lastName, s.admissionNo, s.rollNo, s.fatherName, s.phone, s.fatherPhone]
+        .filter(Boolean).some((v: string) => String(v).toLowerCase().includes(tt)));
     }
     return list;
   }, [all, q, fClass, fStatus]);
 
-  function openCreate() {
+  async function openCreate() {
+    manualHi.current = {};
+    const base: any = {
+      class: '1', section: 'A', gender: '', status: 'active',
+      academicYear: school?.academicYear ?? '', nationality: 'Indian',
+      admissionDate: new Date().toISOString().slice(0, 10),
+    };
     setEditingId(null);
-    setForm({ class: '1', section: 'A', gender: 'male', status: 'active' });
+    setForm(base);
     setFormOpen(true);
+    // Auto admission number
+    try { const r = await API.get('/api/students/next-admission-no'); if (r?.admissionNo) setForm((p: any) => ({ ...p, admissionNo: r.admissionNo })); } catch {}
+    // Auto roll number for default class/section
+    fetchRoll(base.class, base.section);
   }
+
   function openEdit(s: any) {
+    manualHi.current = { firstNameHi: !!s.firstNameHi, lastNameHi: !!s.lastNameHi, fatherNameHi: !!s.fatherNameHi, motherNameHi: !!s.motherNameHi };
+    const next = { ...s };
+    ['dob', 'admissionDate', 'tcDate'].forEach(d => { if (next[d]) next[d] = String(next[d]).slice(0, 10); });
     setEditingId(s._id);
-    setForm({ ...s });
+    setForm(next);
     setView(null);
     setFormOpen(true);
   }
 
+  async function fetchRoll(cls: string, sec: string) {
+    if (!cls || !sec) return;
+    try { const r = await API.get(`/api/students/next-roll-no?class=${encodeURIComponent(cls)}&section=${encodeURIComponent(sec)}`); if (r?.rollNo) setForm((p: any) => ({ ...p, rollNo: r.rollNo })); } catch {}
+  }
+
+  // English change → auto-fill paired Hindi (unless user typed Hindi manually)
+  function onEn(enKey: string, hiKey: string, v: string) {
+    setForm((p: any) => {
+      const next = { ...p, [enKey]: v };
+      if (!manualHi.current[hiKey]) next[hiKey] = translitEnToHi(v.trim());
+      return next;
+    });
+  }
+  function onHi(hiKey: string, v: string) { manualHi.current[hiKey] = true; setForm((p: any) => ({ ...p, [hiKey]: v })); }
+
   async function save() {
-    if (!form.firstName || !form.admissionNo) {
-      Alert.alert('Missing', 'First name and admission number are required.');
+    if (!form.firstName || !form.admissionNo || !form.class || !form.section) {
+      Alert.alert('Missing', 'First name, admission number, class and section are required.');
       return;
     }
     setSaving(true);
     try {
-      const saved = editingId
-        ? await API.put(`/api/students/${editingId}`, form)
-        : await API.post('/api/students', form);
+      const saved = editingId ? await API.put(`/api/students/${editingId}`, form) : await API.post('/api/students', form);
       setAll(prev => editingId ? prev.map(x => x._id === editingId ? { ...x, ...saved } : x) : [saved, ...prev]);
       setFormOpen(false);
-      if (saved._parent?.created) {
-        Alert.alert('Parent account created', `Username: ${saved._parent.username}\nPassword: ${saved._parent.password}`);
-      }
+      if (saved._parent?.created) Alert.alert('Parent account created', `Username: ${saved._parent.username}\nPassword: ${saved._parent.password}`);
     } catch (e: any) { Alert.alert('Save failed', e.message); }
     finally { setSaving(false); }
   }
@@ -106,6 +144,8 @@ export default function Students() {
     } catch (e: any) { Alert.alert('Export failed', e.message); }
   }
 
+  const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
+
   if (loading) return <Screen title={t('nav.students', 'Students')} colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
 
   return (
@@ -114,14 +154,8 @@ export default function Students() {
       colors={rt.gradient} onBack={() => router.back()} scroll={false}
       right={
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity onPress={doExport} style={styles.addBtn}>
-            <Ionicons name="share-outline" size={22} color="#fff" />
-          </TouchableOpacity>
-          {can(user, 'student:create') && (
-            <TouchableOpacity onPress={openCreate} style={styles.addBtn}>
-              <Ionicons name="add" size={24} color="#fff" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={doExport} style={styles.addBtn}><Ionicons name="share-outline" size={22} color="#fff" /></TouchableOpacity>
+          {can(user, 'student:create') && <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={24} color="#fff" /></TouchableOpacity>}
         </View>
       }
     >
@@ -129,7 +163,7 @@ export default function Students() {
         <SearchBar value={q} onChangeText={setQ} placeholder="Name, admission no, phone…" />
         <ChipPicker label="Class" options={['', ...CLASSES]} value={fClass} onChange={setFClass} />
         <View style={{ height: spacing.sm }} />
-        <ChipPicker label="Status" options={['', 'active', 'inactive', 'graduated']} value={fStatus} onChange={setFStatus} />
+        <ChipPicker label="Status" options={['', 'active', 'inactive', 'graduated', 'transferred']} value={fStatus} onChange={setFStatus} />
       </View>
 
       <FlatList
@@ -149,21 +183,25 @@ export default function Students() {
         )}
       />
 
-      {/* Detail sheet */}
-      <FormModal
-        visible={!!view} title={view ? `${view.firstName} ${view.lastName ?? ''}`.trim() : ''}
+      {/* Detail */}
+      <FormModal visible={!!view} title={view ? `${view.firstName} ${view.lastName ?? ''}`.trim() : ''}
         onClose={() => setView(null)} onSubmit={() => view && openEdit(view)}
-        submitLabel={can(user, 'student:update') ? 'Edit' : 'Close'}
-      >
+        submitLabel={can(user, 'student:update') ? 'Edit' : 'Close'}>
         {view && (
           <View style={{ gap: spacing.sm }}>
             <Detail k="Admission No" v={view.admissionNo} />
+            <Detail k="Name (Hindi)" v={[view.firstNameHi, view.lastNameHi].filter(Boolean).join(' ')} />
             <Detail k="Class / Section" v={`${view.class} - ${view.section}`} />
             <Detail k="Roll No" v={view.rollNo} />
+            <Detail k="DOB" v={view.dob ? String(view.dob).slice(0,10) : ''} />
             <Detail k="Gender" v={view.gender} />
+            <Detail k="Blood Group" v={view.bloodGroup} />
             <Detail k="Father" v={view.fatherName} />
             <Detail k="Father Phone" v={view.fatherPhone} />
             <Detail k="Mother" v={view.motherName} />
+            <Detail k="Category" v={view.category} />
+            <Detail k="Religion" v={view.religion} />
+            <Detail k="Address" v={[view.address, view.city, view.state, view.pincode].filter(Boolean).join(', ')} />
             <Detail k="Status" v={view.status} />
             {can(user, 'student:delete') && (view.status ?? 'active') === 'active' && (
               <TouchableOpacity onPress={() => deactivate(view)} style={styles.dangerBtn}>
@@ -175,44 +213,91 @@ export default function Students() {
         )}
       </FormModal>
 
-      {/* Create / edit form */}
-      <FormModal
-        visible={formOpen} title={editingId ? 'Edit student' : 'New student'}
+      {/* Create / edit — full field set in collapsible sections */}
+      <FormModal visible={formOpen} title={editingId ? 'Edit student' : 'New student'}
         onClose={() => setFormOpen(false)} onSubmit={save} submitting={saving}
-        submitLabel={editingId ? 'Update' : 'Create'}
-      >
-        <Field label="First name *" value={form.firstName} onChangeText={(v: string) => setForm({ ...form, firstName: v })} />
-        <Field label="Last name" value={form.lastName} onChangeText={(v: string) => setForm({ ...form, lastName: v })} />
-        <Field label="Admission No *" value={form.admissionNo} onChangeText={(v: string) => setForm({ ...form, admissionNo: v })} />
-        <ChipPicker label="Class" options={CLASSES} value={form.class ?? '1'} onChange={(v) => setForm({ ...form, class: v })} />
-        <ChipPicker label="Section" options={SECTIONS} value={form.section ?? 'A'} onChange={(v) => setForm({ ...form, section: v })} />
-        <Field label="Roll No" value={form.rollNo} onChangeText={(v: string) => setForm({ ...form, rollNo: v })} />
-        <ChipPicker label="Gender" options={['male', 'female', 'other']} value={form.gender ?? 'male'} onChange={(v) => setForm({ ...form, gender: v })} />
-        <Field label="Father name" value={form.fatherName} onChangeText={(v: string) => setForm({ ...form, fatherName: v })} />
-        <Field label="Father phone" value={form.fatherPhone} keyboardType="phone-pad" onChangeText={(v: string) => setForm({ ...form, fatherPhone: v })} />
-        <Field label="Mother name" value={form.motherName} onChangeText={(v: string) => setForm({ ...form, motherName: v })} />
+        submitLabel={editingId ? 'Update' : 'Create'}>
+
+        <Collapsible title="Identity" defaultOpen>
+          <Field label="Admission No *" value={form.admissionNo} placeholder="Auto-generated…" onChangeText={(v: string) => set('admissionNo', v)} />
+          <BilingualField label="First name *" en={form.firstName ?? ''} hi={form.firstNameHi ?? ''} onEn={(v) => onEn('firstName','firstNameHi',v)} onHi={(v) => onHi('firstNameHi',v)} />
+          <BilingualField label="Last name" en={form.lastName ?? ''} hi={form.lastNameHi ?? ''} onEn={(v) => onEn('lastName','lastNameHi',v)} onHi={(v) => onHi('lastNameHi',v)} />
+          <ChipPicker label="Class *" options={CLASSES} value={form.class ?? '1'} onChange={(v) => { set('class', v); fetchRoll(v, form.section); }} />
+          <ChipPicker label="Section *" options={SECTIONS} value={form.section ?? 'A'} onChange={(v) => { set('section', v); fetchRoll(form.class, v); }} />
+          <Field label="Roll No" value={form.rollNo} onChangeText={(v: string) => set('rollNo', v)} />
+          <Field label="Academic Year" value={form.academicYear} placeholder="2025-2026" onChangeText={(v: string) => set('academicYear', v)} />
+          <Field label="Date of Birth" value={form.dob} placeholder="YYYY-MM-DD" onChangeText={(v: string) => set('dob', v)} />
+          <Field label="Admission Date" value={form.admissionDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => set('admissionDate', v)} />
+          <ChipPicker label="Gender" options={['', 'male', 'female', 'other']} value={form.gender ?? ''} onChange={(v) => set('gender', v)} />
+          <ChipPicker label="Blood Group" options={BLOOD} value={form.bloodGroup ?? ''} onChange={(v) => set('bloodGroup', v)} />
+          <Field label="House" value={form.house} onChangeText={(v: string) => set('house', v)} />
+        </Collapsible>
+
+        <Collapsible title="Parents & Guardian">
+          <BilingualField label="Father name" en={form.fatherName ?? ''} hi={form.fatherNameHi ?? ''} onEn={(v) => onEn('fatherName','fatherNameHi',v)} onHi={(v) => onHi('fatherNameHi',v)} />
+          <Field label="Father phone" value={form.fatherPhone} keyboardType="phone-pad" onChangeText={(v: string) => set('fatherPhone', v)} />
+          <Field label="Father occupation" value={form.fatherOccup} onChangeText={(v: string) => set('fatherOccup', v)} />
+          <BilingualField label="Mother name" en={form.motherName ?? ''} hi={form.motherNameHi ?? ''} onEn={(v) => onEn('motherName','motherNameHi',v)} onHi={(v) => onHi('motherNameHi',v)} />
+          <Field label="Mother phone" value={form.motherPhone} keyboardType="phone-pad" onChangeText={(v: string) => set('motherPhone', v)} />
+          <Field label="Mother occupation" value={form.motherOccup} onChangeText={(v: string) => set('motherOccup', v)} />
+          <Field label="Guardian name" value={form.guardianName} onChangeText={(v: string) => set('guardianName', v)} />
+          <Field label="Guardian phone" value={form.guardianPhone} keyboardType="phone-pad" onChangeText={(v: string) => set('guardianPhone', v)} />
+          <Field label="Guardian relation" value={form.guardianRel} onChangeText={(v: string) => set('guardianRel', v)} />
+        </Collapsible>
+
+        <Collapsible title="Contact & Address">
+          <Field label="Phone" value={form.phone} keyboardType="phone-pad" onChangeText={(v: string) => set('phone', v)} />
+          <Field label="Email" value={form.email} autoCapitalize="none" onChangeText={(v: string) => set('email', v)} />
+          <Field label="Address" value={form.address} onChangeText={(v: string) => set('address', v)} />
+          <Field label="City" value={form.city} onChangeText={(v: string) => set('city', v)} />
+          <Field label="State" value={form.state} onChangeText={(v: string) => set('state', v)} />
+          <Field label="Pincode" value={form.pincode} keyboardType="numeric" onChangeText={(v: string) => set('pincode', v)} />
+        </Collapsible>
+
+        <Collapsible title="Category & Documents">
+          <ChipPicker label="Category" options={CATEGORIES} value={form.category ?? ''} onChange={(v) => set('category', v)} />
+          <Field label="Caste" value={form.caste} onChangeText={(v: string) => set('caste', v)} />
+          <ChipPicker label="Religion" options={RELIGIONS} value={form.religion ?? ''} onChange={(v) => set('religion', v)} />
+          <Field label="Mother tongue" value={form.motherTongue} onChangeText={(v: string) => set('motherTongue', v)} />
+          <Field label="Nationality" value={form.nationality} onChangeText={(v: string) => set('nationality', v)} />
+          <Field label="Aadhar No" value={form.aadharNo} keyboardType="numeric" onChangeText={(v: string) => set('aadharNo', v)} />
+          <Field label="Birth Certificate No" value={form.birthCertNo} onChangeText={(v: string) => set('birthCertNo', v)} />
+        </Collapsible>
+
+        <Collapsible title="Transport">
+          <ChipPicker label="Transport mode" options={TRANSPORT} value={form.transportMode ?? ''} onChange={(v) => set('transportMode', v)} />
+          <Field label="Bus route" value={form.busRoute} onChangeText={(v: string) => set('busRoute', v)} />
+          <Field label="Pickup point" value={form.pickupPoint} onChangeText={(v: string) => set('pickupPoint', v)} />
+        </Collapsible>
+
+        <Collapsible title="Previous School">
+          <Field label="Previous school" value={form.prevSchool} onChangeText={(v: string) => set('prevSchool', v)} />
+          <Field label="Previous class" value={form.prevClass} onChangeText={(v: string) => set('prevClass', v)} />
+          <Field label="TC No" value={form.tcNo} onChangeText={(v: string) => set('tcNo', v)} />
+          <Field label="TC Date" value={form.tcDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => set('tcDate', v)} />
+        </Collapsible>
+
+        <Collapsible title="Other">
+          <ChipPicker label="Status" options={['active', 'inactive', 'graduated', 'transferred']} value={form.status ?? 'active'} onChange={(v) => set('status', v)} />
+          <Field label="Notes" value={form.notes} onChangeText={(v: string) => set('notes', v)} />
+        </Collapsible>
       </FormModal>
     </Screen>
   );
 }
 
 function Detail({ k, v }: { k: string; v?: any }) {
-  return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailK}>{k}</Text>
-      <Text style={styles.detailV}>{v ?? '—'}</Text>
-    </View>
-  );
+  return <View style={styles.detailRow}><Text style={styles.detailK}>{k}</Text><Text style={styles.detailV}>{v || '—'}</Text></View>;
 }
 
 const styles = StyleSheet.create({
-  addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center' },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: colors.line },
+  addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line, gap: 12 },
   detailK: { ...font.label, color: colors.muted },
-  detailV: { ...font.body, color: colors.ink, fontWeight: '600' },
-  dangerBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center',
-    paddingVertical: 12, marginTop: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.danger + '40' },
+  detailV: { ...font.body, color: colors.ink, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
+  dangerBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 12, marginTop: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.danger + '40' },
   dangerText: { ...font.title, color: colors.danger },
+  fieldLabel: { ...font.label, color: colors.slate },
+  input: { backgroundColor: colors.bg, borderRadius: radius.md, paddingHorizontal: spacing.md, height: 46, ...font.body, color: colors.ink },
+  hiInput: { fontSize: 17 },
 });
