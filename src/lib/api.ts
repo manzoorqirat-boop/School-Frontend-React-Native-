@@ -1,5 +1,5 @@
-import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
+import { getItem, setItem, removeItem } from './storage';
 
 // Direct-to-.NET API client. Behaviourally identical to the web app's api.ts:
 //   - Bearer token on every call
@@ -9,8 +9,18 @@ import Constants from 'expo-constants';
 // Difference from web: tokens live in expo-secure-store (encrypted), not
 // localStorage, and base is the absolute .NET URL (no Next.js proxy on mobile).
 
+// Resolution order:
+//   1. EXPO_PUBLIC_API_URL (set per-platform in .env for local dev)
+//   2. app.json -> expo.extra.apiBase (deployed backend, used as default/prod)
+// Local dev note: 'localhost' only reaches your machine's own backend from
+// web and iOS simulator. Android emulator must use 10.0.2.2, and a physical
+// device must use your machine's LAN IP — set EXPO_PUBLIC_API_URL accordingly.
+const configuredBase = (Constants.expoConfig?.extra as any)?.apiBase as string | undefined;
+const envBase = process.env.EXPO_PUBLIC_API_URL;
+
 const BASE: string =
-  (Constants.expoConfig?.extra as any)?.apiBase ??
+  envBase ??
+  configuredBase ??
   'https://schoolnet-production-ac7d.up.railway.app';
 
 export type SessionUser = {
@@ -44,15 +54,9 @@ const K = {
 
 let refreshInFlight: Promise<boolean> | null = null;
 
-async function get(key: string) {
-  try { return await SecureStore.getItemAsync(key); } catch { return null; }
-}
-async function set(key: string, val: string) {
-  try { await SecureStore.setItemAsync(key, val); } catch {}
-}
-async function del(key: string) {
-  try { await SecureStore.deleteItemAsync(key); } catch {}
-}
+const get = getItem;
+const set = setItem;
+const del = removeItem;
 
 export const API = {
   base: BASE,
