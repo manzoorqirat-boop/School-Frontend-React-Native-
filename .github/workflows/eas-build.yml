@@ -37,11 +37,19 @@ jobs:
         run: npm ci
 
       # Writes the Google service-account key from a GitHub secret to the file
-      # eas.json expects, so submit can authenticate to Play. Only needed when
-      # submitting, but harmless to always create.
+      # eas.json expects, so submit can authenticate to Play. The secret is read
+      # via env (GitHub Actions forbids 'secrets' directly inside an if:), and
+      # the step no-ops when the secret isn't set yet.
       - name: Write Google service account key
-        if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON != '' }}
-        run: echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > google-service-account.json
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "$GOOGLE_SERVICE_ACCOUNT_JSON" > google-service-account.json
+            echo "Service account key written."
+          else
+            echo "No service account secret set; skipping (fine for build-only)."
+          fi
 
       - name: Build (production app-bundle)
         run: eas build --platform android --profile production --non-interactive --no-wait
