@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
+import { useI18n } from '@/i18n';
 import { API } from '@/lib/api';
 import { themeForRole, colors, spacing, font, radius } from '@/theme';
 import { GradientHeader, StatTile, ActionCard } from '@/components/ui';
@@ -9,6 +12,8 @@ import { GradientHeader, StatTile, ActionCard } from '@/components/ui';
 // Parent + student portal.
 export default function Portal() {
   const { user, signOut } = useAuth();
+  const router = useRouter();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const rt = themeForRole(user?.role);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,20 +42,25 @@ export default function Portal() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={rt.accent} />}>
       <GradientHeader colors={rt.gradient} subtitle={rt.label}
         title={`Hi, ${(user?.name ?? 'there').split(' ')[0]} 👋`}
-        right={<TouchableOpacity onPress={signOut} style={styles.avatar}>
-          <Text style={styles.avatarText}>{(user?.name ?? 'U').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}</Text>
-        </TouchableOpacity>} />
+        right={<View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={() => router.push('/(app)/settings')} style={styles.avatar}>
+            <Ionicons name="settings-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={signOut} style={styles.avatar}>
+            <Text style={styles.avatarText}>{(user?.name ?? 'U').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}</Text>
+          </TouchableOpacity>
+        </View>} />
       <View style={styles.statRow}>
         <StatTile label="Attendance" value={attendancePct != null ? `${attendancePct}%` : '—'} icon="checkbox" tint={colors.emerald} />
         <StatTile label="Fees Due" value={feesDue != null ? `₹${Number(feesDue).toLocaleString('en-IN')}` : '—'} icon="wallet" tint={colors.amber} />
       </View>
-      <Text style={styles.section}>Explore</Text>
+      <Text style={styles.section}>{t('portal.explore', 'Explore')}</Text>
       <View style={{ paddingHorizontal: spacing.xl, gap: spacing.md }}>
-        <ActionCard title="Attendance" subtitle="Daily record & summary" icon="checkbox" tint={colors.emerald} />
-        <ActionCard title="Report Cards" subtitle="Exam results & grades" icon="ribbon" tint={colors.sky} />
-        <ActionCard title="Fees" subtitle="Invoices & pay online" icon="wallet" tint={colors.amber} />
-        <ActionCard title="Timetable" subtitle="Class schedule" icon="calendar" tint={colors.indigo} />
-        <ActionCard title="Polls" subtitle="Vote & share feedback" icon="bar-chart" tint={colors.pink} />
+        <ActionCard title={t('nav.attendance', 'Attendance')} subtitle="Daily record & summary" icon="checkbox" tint={colors.emerald} onPress={() => router.push('/(app)/attendance-history')} />
+        <ActionCard title={t('nav.reportCards', 'Report Cards')} subtitle="Exam results & grades" icon="ribbon" tint={colors.sky} onPress={() => router.push('/(app)/report-cards')} />
+        <ActionCard title={t('nav.fees', 'Fees')} subtitle="Invoices & pay online" icon="wallet" tint={colors.amber} onPress={() => router.push('/(app)/fees')} />
+        <ActionCard title={t('nav.timetable', 'Timetable')} subtitle="Class schedule" icon="calendar" tint={colors.indigo} onPress={() => router.push('/(app)/timetable')} />
+        <ActionCard title={t('nav.polls', 'Polls')} subtitle="Vote & share feedback" icon="bar-chart" tint={colors.pink} onPress={() => router.push('/(app)/polls')} />
       </View>
     </ScrollView>
   );
