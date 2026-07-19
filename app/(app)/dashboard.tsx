@@ -97,6 +97,8 @@ export default function Dashboard() {
         <ActionCard title={t('nav.polls', 'Polls')} subtitle="Create & view feedback" icon="bar-chart" tint={colors.pink} onPress={() => router.push('/(app)/polls')} />
         {can('users') && <ActionCard title={t('nav.users', 'Users')} subtitle="Staff & parent accounts" icon="person-circle" tint={colors.indigo} onPress={() => router.push('/(app)/users')} />}
         {can('audit') && <ActionCard title={t('nav.audit', 'Audit Log')} subtitle="Activity history" icon="time" tint={colors.slate} onPress={() => router.push('/(app)/audit')} />}
+        {can('fees') && <ActionCard title={t('nav.feeStructures', 'Fee Structures')} subtitle="Heads & installments" icon="pricetags" tint={colors.amber} onPress={() => router.push('/(app)/fee-structures')} />}
+        {can('users') && <ActionCard title={t('nav.privileges', 'Privileges')} subtitle="Role permissions" icon="shield-checkmark" tint={colors.violet} onPress={() => router.push('/(app)/privileges')} />}
       </View>
     </ScrollView>
   );
