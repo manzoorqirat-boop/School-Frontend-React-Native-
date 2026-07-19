@@ -6,6 +6,7 @@ import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import { can } from '@/lib/privileges';
+import { exportCSV } from '@/lib/export';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import {
   Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal,
@@ -98,17 +99,31 @@ export default function Students() {
     ]);
   }
 
+  async function doExport() {
+    try {
+      await exportCSV('students', ['Name', 'Admission No', 'Class', 'Section', 'Roll', 'Father', 'Phone', 'Status'],
+        filtered.map(s => [`${s.firstName} ${s.lastName ?? ''}`.trim(), s.admissionNo, s.class, s.section, s.rollNo, s.fatherName, s.fatherPhone, s.status ?? 'active']));
+    } catch (e: any) { Alert.alert('Export failed', e.message); }
+  }
+
   if (loading) return <Screen title={t('nav.students', 'Students')} colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
 
   return (
     <Screen
       title={t('nav.students', 'Students')} subtitle={`${filtered.length} of ${all.length}`}
       colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={can(user, 'student:create') ? (
-        <TouchableOpacity onPress={openCreate} style={styles.addBtn}>
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      ) : undefined}
+      right={
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={doExport} style={styles.addBtn}>
+            <Ionicons name="share-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+          {can(user, 'student:create') && (
+            <TouchableOpacity onPress={openCreate} style={styles.addBtn}>
+              <Ionicons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
+      }
     >
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
         <SearchBar value={q} onChangeText={setQ} placeholder="Name, admission no, phone…" />
