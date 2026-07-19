@@ -1,12 +1,18 @@
 name: EAS Build & Submit
 
-# Trigger: manually from the Actions tab (choose build-only or build+submit),
-# or automatically on a version tag push (e.g. v1.0.1).
+# Trigger manually from the Actions tab, or on a version tag push (v1.0.1).
 on:
   workflow_dispatch:
     inputs:
+      profile:
+        description: 'Build profile'
+        type: choice
+        options:
+          - preview        # -> .apk you can install directly on a phone (TESTING)
+          - production     # -> .aab for Google Play (RELEASE)
+        default: preview
       submit:
-        description: 'Also submit to Google Play (internal track)?'
+        description: 'Also submit to Google Play? (only for production)'
         type: boolean
         default: false
   push:
@@ -35,10 +41,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Writes the Google service-account key from a GitHub secret to the file
-      # eas.json expects, so submit can authenticate to Play. The secret is read
-      # via env (GitHub Actions forbids 'secrets' directly inside an if:), and
-      # the step no-ops when the secret isn't set yet.
       - name: Write Google service account key
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
@@ -47,15 +49,14 @@ jobs:
             echo "$GOOGLE_SERVICE_ACCOUNT_JSON" > google-service-account.json
             echo "Service account key written."
           else
-            echo "No service account secret set; skipping (fine for build-only)."
+            echo "No service account secret set; skipping (fine for APK/build-only)."
           fi
 
-      - name: Build (production app-bundle)
-        run: eas build --platform android --profile production --non-interactive --no-wait
-        # --no-wait returns immediately; the build runs on Expo's servers.
-        # Remove --no-wait if you want the job to block until the build finishes
-        # (needed if you chain submit in the same run).
+      # Profile comes from the dropdown when run manually; defaults to preview
+      # (APK) for tag pushes too. Change to production when releasing to Play.
+      - name: Build
+        run: eas build --platform android --profile ${{ github.event.inputs.profile || 'preview' }} --non-interactive --no-wait
 
       - name: Build & Submit to Google Play
-        if: ${{ github.event.inputs.submit == 'true' }}
+        if: ${{ github.event.inputs.submit == 'true' && github.event.inputs.profile == 'production' }}
         run: eas build --platform android --profile production --non-interactive --auto-submit
