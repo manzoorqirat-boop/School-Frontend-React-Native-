@@ -7,6 +7,8 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, EmptyState, Loading } from '@/components/screen';
 import { Card } from '@/components/ui';
+import { exportHTML, htmlTable } from '@/lib/export';
+import { Ionicons } from '@expo/vector-icons';
 
 // Report cards for parent/student. Parents with multiple children get a switcher.
 export default function ReportCards() {
@@ -32,9 +34,24 @@ export default function ReportCards() {
   }, []);
   useEffect(() => { load(activeChild); }, [activeChild, load]);
 
+  async function doExport() {
+    if (!report) return;
+    try {
+      const name = `${report.student?.firstName ?? 'student'}`;
+      let body = '';
+      (report.exams ?? []).forEach((ex: any) => {
+        body += `<h2 style="color:#6D3CF0;font-size:16px;margin-top:16px">${ex.examName} — ${ex.percentage}%</h2>`;
+        body += htmlTable(['Subject', 'Marks', 'Grade'],
+          (ex.subjects ?? []).map((sub: any) => [sub.subjectName, sub.status === 'absent' ? 'AB' : `${sub.marksObtained ?? '-'}/${sub.maxMarks}`, sub.grade ?? '']));
+      });
+      await exportHTML(`report-card-${name}`, `Report Card — ${name}`, body);
+    } catch (e: any) { Alert.alert('Export failed', e.message); }
+  }
+
   return (
     <Screen title={t('nav.reportCards', 'Report Cards')} subtitle={report?.student ? `${report.student.firstName} ${report.student.lastName ?? ''}`.trim() : 'Exam results'}
-      colors={rt.gradient} onBack={() => router.back()}>
+      colors={rt.gradient} onBack={() => router.back()}
+      right={report ? <TouchableOpacity onPress={doExport} style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="share-outline" size={22} color="#fff" /></TouchableOpacity> : undefined}>
 
       {childIds.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: spacing.md }}>
