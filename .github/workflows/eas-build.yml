@@ -1,0 +1,54 @@
+name: EAS Build & Submit
+
+# Trigger: manually from the Actions tab (choose build-only or build+submit),
+# or automatically on a version tag push (e.g. v1.0.1).
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: 'Also submit to Google Play (internal track)?'
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build Android (EAS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Writes the Google service-account key from a GitHub secret to the file
+      # eas.json expects, so submit can authenticate to Play. Only needed when
+      # submitting, but harmless to always create.
+      - name: Write Google service account key
+        if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON != '' }}
+        run: echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > google-service-account.json
+
+      - name: Build (production app-bundle)
+        run: eas build --platform android --profile production --non-interactive --no-wait
+        # --no-wait returns immediately; the build runs on Expo's servers.
+        # Remove --no-wait if you want the job to block until the build finishes
+        # (needed if you chain submit in the same run).
+
+      - name: Build & Submit to Google Play
+        if: ${{ github.event.inputs.submit == 'true' }}
+        run: eas build --platform android --profile production --non-interactive --auto-submit
