@@ -24,7 +24,10 @@
       "expo-font"
     ],
     "extra": {
-      "apiBase": "https://schoolnet-production-ac7d.up.railway.app"
+      "apiBase": "https://schoolnet-production-ac7d.up.railway.app",
+      "eas": {
+        "projectId": "64bbf8cb-25b7-4727-b1bb-fb09e08e2b95"
+      }
     },
     "owner": "schooldotnet"
   }
