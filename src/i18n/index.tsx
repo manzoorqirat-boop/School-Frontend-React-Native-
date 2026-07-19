@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { getItem, setItem } from '../lib/storage';
 import { I18N_TRANSLATIONS, Lang } from './translations';
 
 // Lightweight i18n. Ported from the web I18nProvider: same dictionary, same
@@ -27,7 +27,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const saved = await SecureStore.getItemAsync(LANG_KEY);
+        const saved = await getItem(LANG_KEY);
         if (saved === 'en' || saved === 'hi') setLangState(saved);
       } catch {}
     })();
@@ -35,7 +35,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
-    SecureStore.setItemAsync(LANG_KEY, l).catch(() => {});
+    setItem(LANG_KEY, l).catch(() => {});
   }, []);
 
   // t(): current-lang lookup → English fallback → provided fallback → key.
