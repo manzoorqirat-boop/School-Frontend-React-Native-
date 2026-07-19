@@ -11,7 +11,7 @@
     "android": { "package": "com.qmsofts.school" },
     "plugins": ["expo-router", "expo-secure-store", "expo-font"],
     "extra": {
-      "apiBase": "https://schoolnet-production-ac7d.up.railway.app"
+      "apiBase": "https://schoolsaas.qmsofts.com"
     }
   }
 }
