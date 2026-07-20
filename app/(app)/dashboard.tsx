@@ -1,114 +1,137 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import { API } from '@/lib/api';
-import { themeForRole, colors, spacing, font, radius } from '@/theme';
-import { GradientHeader, StatTile, ActionCard } from '@/components/ui';
+import { colors, spacing, font, radius, roleAccent, roleLabel } from '@/theme';
 
 export default function Dashboard() {
   const { user, school, signOut } = useAuth();
-  const router = useRouter();
   const { t } = useI18n();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const rt = themeForRole(user?.role);
+  const accent = roleAccent(user?.role);
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState<{ students?: number; feesOutstanding?: number; attendancePct?: number }>({});
+  const [stats, setStats] = useState<{ students?: number; feesOutstanding?: number }>({});
 
   const load = useCallback(async () => {
     try {
-      // Best-effort parallel fetch; each guarded so a missing endpoint doesn't
-      // blank the screen.
-      const [studentsRes, feeRes] = await Promise.allSettled([
+      const [s, f] = await Promise.allSettled([
         API.get('/api/students?limit=1'),
         API.get('/api/invoices/reports/summary'),
       ]);
       const next: any = {};
-      if (studentsRes.status === 'fulfilled')
-        next.students = studentsRes.value?.pagination?.total ?? studentsRes.value?.count;
-      if (feeRes.status === 'fulfilled')
-        next.feesOutstanding = feeRes.value?.outstanding;
+      if (s.status === 'fulfilled') next.students = s.value?.pagination?.total ?? s.value?.count;
+      if (f.status === 'fulfilled') next.feesOutstanding = f.value?.outstanding;
       setStats(next);
     } catch {}
   }, []);
-
   useEffect(() => { load(); }, [load]);
   const onRefresh = useCallback(async () => { setRefreshing(true); await load(); setRefreshing(false); }, [load]);
 
+  const r = user?.role ?? '';
   const can = (p: string) => {
-    const r = user?.role ?? '';
     if (r === 'superadmin' || r === 'school_admin') return true;
-    if (r === 'principal') return p !== 'users';            // principal: all but user mgmt
+    if (r === 'principal') return p !== 'users';
     if (r === 'accountant') return ['fees', 'payroll'].includes(p);
-    if (r === 'teacher') return ['attendance'].includes(p);
+    if (r === 'teacher') return ['attendance', 'marks', 'my-classes'].includes(p);
     return false;
   };
 
+  const initials = (user?.name ?? 'U').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+
+  const actions: { key: string; label: string; icon: any; route: string; show: boolean }[] = [
+    { key: 'students', label: t('nav.students', 'Students'), icon: 'people-outline', route: '/(app)/students', show: true },
+    { key: 'attendance', label: t('nav.attendance', 'Attendance'), icon: 'checkbox-outline', route: '/(app)/attendance', show: true },
+    { key: 'marks', label: t('nav.marks', 'Marks Entry'), icon: 'create-outline', route: '/(app)/marks', show: r === 'teacher' },
+    { key: 'my-classes', label: t('nav.myClasses', 'My Classes'), icon: 'easel-outline', route: '/(app)/my-classes', show: r === 'teacher' },
+    { key: 'exams', label: t('nav.exams', 'Exams'), icon: 'document-text-outline', route: '/(app)/exams', show: true },
+    { key: 'fees', label: t('nav.fees', 'Fees'), icon: 'wallet-outline', route: '/(app)/fees', show: can('fees') },
+    { key: 'timetable', label: t('nav.timetable', 'Timetable'), icon: 'calendar-outline', route: '/(app)/timetable', show: true },
+    { key: 'payroll', label: t('nav.payroll', 'Payroll'), icon: 'cash-outline', route: '/(app)/payroll', show: can('payroll') },
+    { key: 'polls', label: t('nav.polls', 'Polls'), icon: 'bar-chart-outline', route: '/(app)/polls', show: true },
+    { key: 'users', label: t('nav.users', 'Users'), icon: 'person-circle-outline', route: '/(app)/users', show: can('users') },
+    { key: 'audit', label: t('nav.audit', 'Audit Log'), icon: 'time-outline', route: '/(app)/audit', show: can('users') },
+  ].filter(a => a.show);
+
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={rt.accent} />}
-    >
-      <GradientHeader
-        colors={rt.gradient}
-        subtitle={rt.label}
-        title={`Hi, ${(user?.name ?? 'there').split(' ')[0]} 👋`}
-        right={
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity onPress={() => router.push('/(app)/settings')} style={styles.avatar}>
-              <Ionicons name="settings-outline" size={20} color="#fff" />
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView
+        contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.xxl, paddingHorizontal: spacing.xl }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.muted} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top bar */}
+        <View style={styles.topbar}>
+          <View style={styles.roleRow}>
+            <View style={[styles.roleDot, { backgroundColor: accent }]} />
+            <Text style={styles.roleText}>{roleLabel(user?.role)}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+            <TouchableOpacity onPress={() => router.push('/(app)/settings')} style={styles.iconBtn} hitSlop={6}>
+              <Ionicons name="settings-outline" size={19} color={colors.slate} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={signOut} style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {(user?.name ?? 'U').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
-              </Text>
+            <TouchableOpacity onPress={() => router.push('/(app)/settings')} style={styles.avatar} hitSlop={6}>
+              <Text style={styles.avatarText}>{initials}</Text>
             </TouchableOpacity>
           </View>
-        }
-      >
-        <Text style={styles.schoolName}>{school?.name ?? 'Your school'}</Text>
-      </GradientHeader>
+        </View>
 
-      {/* Stats */}
-      <View style={styles.statRow}>
-        <StatTile label="Students" value={stats.students ?? '—'} icon="people" tint={colors.violet} />
-        <StatTile label="Fees Due" value={stats.feesOutstanding != null ? `₹${Number(stats.feesOutstanding).toLocaleString('en-IN')}` : '—'} icon="wallet" tint={colors.amber} />
-      </View>
+        {/* Greeting */}
+        <Text style={styles.greeting}>Good day,{'\n'}{(user?.name ?? 'there').split(' ')[0]}</Text>
+        <Text style={styles.school}>{school?.name ?? 'Your school'}</Text>
 
-      {/* Quick actions */}
-      <Text style={styles.section}>{t('dashboard.quickActions', 'Quick actions')}</Text>
-      <View style={{ paddingHorizontal: spacing.xl, gap: spacing.md }}>
-        {user?.role === 'teacher' && <ActionCard title={t('nav.myClasses', 'My Classes')} subtitle="Your assigned classes" icon="easel" tint={colors.violet} onPress={() => router.push('/(app)/my-classes')} />}
-        {user?.role === 'teacher' && <ActionCard title={t('nav.marks', 'Marks Entry')} subtitle="Enter exam marks" icon="create" tint={colors.sky} onPress={() => router.push('/(app)/marks')} />}
-        <ActionCard title={t('nav.students', 'Students')} subtitle="Enrolment, profiles, promotion" icon="people" tint={colors.violet} onPress={() => router.push('/(app)/students')} />
-        <ActionCard title={t('nav.attendance', 'Attendance')} subtitle="Mark & review daily attendance" icon="checkbox" tint={colors.emerald} onPress={() => router.push('/(app)/attendance')} />
-        <ActionCard title={t('nav.exams', 'Exams & Marks')} subtitle="Marksheets and report cards" icon="document-text" tint={colors.sky} onPress={() => router.push('/(app)/exams')} />
-        {can('fees') && <ActionCard title={t('nav.fees', 'Fees')} subtitle="Invoices, collection, reports" icon="wallet" tint={colors.amber} onPress={() => router.push('/(app)/fees')} />}
-        <ActionCard title={t('nav.timetable', 'Timetable')} subtitle="Class schedules" icon="calendar" tint={colors.indigo} onPress={() => router.push('/(app)/timetable')} />
-        {can('payroll') && <ActionCard title={t('nav.payroll', 'Payroll')} subtitle="Salaries and payslips" icon="cash" tint={colors.rose} onPress={() => router.push('/(app)/payroll')} />}
-      </View>
+        {/* Stats — two quiet cards */}
+        <View style={styles.statRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Students</Text>
+            <Text style={styles.statValue}>{stats.students ?? '—'}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Fees outstanding</Text>
+            <Text style={styles.statValue}>{stats.feesOutstanding != null ? `₹${Number(stats.feesOutstanding).toLocaleString('en-IN')}` : '—'}</Text>
+          </View>
+        </View>
 
-      <Text style={styles.section}>{t('dashboard.more', 'More')}</Text>
-      <View style={{ paddingHorizontal: spacing.xl, gap: spacing.md }}>
-        <ActionCard title={t('nav.polls', 'Polls')} subtitle="Create & view feedback" icon="bar-chart" tint={colors.pink} onPress={() => router.push('/(app)/polls')} />
-        {can('users') && <ActionCard title={t('nav.users', 'Users')} subtitle="Staff & parent accounts" icon="person-circle" tint={colors.indigo} onPress={() => router.push('/(app)/users')} />}
-        {can('audit') && <ActionCard title={t('nav.audit', 'Audit Log')} subtitle="Activity history" icon="time" tint={colors.slate} onPress={() => router.push('/(app)/audit')} />}
-        {can('fees') && <ActionCard title={t('nav.feeStructures', 'Fee Structures')} subtitle="Heads & installments" icon="pricetags" tint={colors.amber} onPress={() => router.push('/(app)/fee-structures')} />}
-        {can('users') && <ActionCard title={t('nav.privileges', 'Privileges')} subtitle="Role permissions" icon="shield-checkmark" tint={colors.violet} onPress={() => router.push('/(app)/privileges')} />}
-      </View>
-    </ScrollView>
+        {/* Actions — a clean grid, hairline tiles */}
+        <Text style={styles.sectionLabel}>{t('dashboard.quickActions', 'Quick actions')}</Text>
+        <View style={styles.grid}>
+          {actions.map(a => (
+            <TouchableOpacity key={a.key} style={styles.tile} activeOpacity={0.7} onPress={() => router.push(a.route as any)}>
+              <View style={styles.tileIcon}><Ionicons name={a.icon} size={20} color={colors.ink} /></View>
+              <Text style={styles.tileLabel} numberOfLines={1}>{a.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
+const TILE = '31%';
 const styles = StyleSheet.create({
-  avatar: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  schoolName: { ...font.label, color: 'rgba(255,255,255,0.9)', marginTop: spacing.md },
-  statRow: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, marginTop: -spacing.lg },
-  section: { ...font.h3, color: colors.ink, paddingHorizontal: spacing.xl, marginTop: spacing.xl, marginBottom: spacing.md },
+  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xxl },
+  roleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  roleDot: { width: 7, height: 7, borderRadius: 4 },
+  roleText: { ...font.caption, color: colors.slate, textTransform: 'uppercase' },
+  iconBtn: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  avatar: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink },
+  avatarText: { color: colors.white, fontSize: 13, fontWeight: '600' },
+
+  greeting: { ...font.display, color: colors.ink, lineHeight: 34 },
+  school: { ...font.body, color: colors.slate, marginTop: spacing.xs },
+
+  statRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl },
+  statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg },
+  statLabel: { ...font.caption, color: colors.muted, textTransform: 'none', letterSpacing: 0 },
+  statValue: { ...font.h1, color: colors.ink, marginTop: spacing.xs },
+
+  sectionLabel: { ...font.caption, color: colors.muted, textTransform: 'uppercase', marginTop: spacing.xxl, marginBottom: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between' },
+  tile: { width: TILE, aspectRatio: 1, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.md, justifyContent: 'space-between' },
+  tileIcon: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  tileLabel: { ...font.label, color: colors.ink, fontWeight: '600' },
 });
