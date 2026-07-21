@@ -27,6 +27,7 @@ export default function Fees() {
   // detail / pay / discount / generate modal state
   const [detail, setDetail] = useState<any>(null);
   const [detailFull, setDetailFull] = useState<any>(null);
+  const [payments, setPayments] = useState<any[]>([]);
   const [pay, setPay] = useState<any>(null);
   const [payForm, setPayForm] = useState<any>({ method: 'cash' });
   const [idemKey, setIdemKey] = useState('');
@@ -58,8 +59,34 @@ export default function Fees() {
 
   // ── Detail ──────────────────────────────────────────────────────────────
   async function openDetail(inv: any) {
-    setDetail(inv); setDetailFull(null);
+    setDetail(inv); setDetailFull(null); setPayments([]);
     try { setDetailFull(await API.get(`/api/invoices/${inv._id}`)); } catch { setDetailFull(inv); }
+    loadPayments(inv._id);
+  }
+  async function loadPayments(invId: string) {
+    try { const r = await API.get(`/api/invoices/${invId}/payments`); setPayments(r.items ?? []); } catch { setPayments([]); }
+  }
+
+  async function setChequeStatus(payment: any, status: 'success' | 'bounced') {
+    const verb = status === 'success' ? 'clear' : 'bounce';
+    Alert.alert(`Mark cheque ${verb}ed`,
+      status === 'success'
+        ? `Confirm cheque ${payment.chequeNo ?? ''} has cleared? The invoice will be credited ₹${(payment.amount ?? 0).toLocaleString('en-IN')}.`
+        : `Mark cheque ${payment.chequeNo ?? ''} as bounced? The invoice will not be credited.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: status === 'success' ? 'Clear' : 'Bounce', style: status === 'success' ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              const res = await API.patch(`/api/invoices/${detail._id}/payments/${payment._id}/cheque-status`, { status });
+              setPayments(prev => prev.map(p => p._id === payment._id ? (res.payment ?? { ...p, status }) : p));
+              if (res.invoice) {
+                setDetail((d: any) => ({ ...d, ...res.invoice }));
+                setInvoices(prev => prev.map(x => x._id === detail._id ? { ...x, ...res.invoice } : x));
+              }
+            } catch (e: any) { Alert.alert('Failed', e.message); }
+          } },
+      ]);
   }
 
   // ── Pay (idempotent) ────────────────────────────────────────────────────
@@ -78,6 +105,9 @@ export default function Fees() {
     if (payForm.method === 'cheque' && (!payForm.chequeNo?.trim() || !payForm.chequeBank?.trim())) {
       Alert.alert('Missing', 'Cheque number and bank are required for cheque payments.'); return;
     }
+    if (payForm.method === 'cheque' && payForm.chequeDate && !/^\d{4}-\d{2}-\d{2}$/.test(payForm.chequeDate)) {
+      Alert.alert('Invalid date', 'Cheque date must be YYYY-MM-DD.'); return;
+    }
     if (['upi', 'card', 'bank_transfer'].includes(payForm.method) && !payForm.transactionRef?.trim()) {
       Alert.alert('Missing', 'Transaction reference is required for this method.'); return;
     }
@@ -87,12 +117,16 @@ export default function Fees() {
         const res = await API.post(`/api/invoices/${pay._id}/pay-offline`, {
           amount: amt, method: payForm.method,
           chequeNo: payForm.chequeNo, chequeBank: payForm.chequeBank,
+          chequeDate: payForm.method === 'cheque' ? (payForm.chequeDate || undefined) : undefined,
           transactionRef: payForm.transactionRef, notes: payForm.notes,
           idempotencyKey: idemKey,
         });
         setInvoices(prev => prev.map(x => x._id === pay._id ? (res.invoice ?? x) : x));
         setPay(null);
-        Alert.alert('Payment recorded', `Receipt ${res.payment?.receiptNo ?? ''}`);
+        Alert.alert('Payment recorded',
+          payForm.method === 'cheque'
+            ? `Cheque recorded as pending (Receipt ${res.payment?.receiptNo ?? ''}). The invoice will be credited once you mark the cheque cleared.`
+            : `Receipt ${res.payment?.receiptNo ?? ''}`);
       } catch (e: any) { Alert.alert('Payment failed', e.message); }
       finally { setSaving(false); }
     };
@@ -200,6 +234,31 @@ export default function Fees() {
             <Row k="Total" v={`₹${(detail.total ?? 0).toLocaleString('en-IN')}`} strong />
             <Row k="Paid" v={`₹${(detail.amountPaid ?? 0).toLocaleString('en-IN')}`} />
             <Row k="Balance" v={`₹${Math.max(0, (detail.total ?? 0) - (detail.amountPaid ?? 0)).toLocaleString('en-IN')}`} strong />
+
+            {/* Pending cheques — clear or bounce */}
+            {payments.filter(p => p.method === 'cheque' && p.status === 'pending').length > 0 && (
+              <View style={{ marginTop: spacing.md }}>
+                <Text style={styles.sectHead}>Pending cheques</Text>
+                {payments.filter(p => p.method === 'cheque' && p.status === 'pending').map(p => (
+                  <View key={p._id} style={styles.chequeRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.chequeMain}>{p.chequeNo ?? '—'} · {p.chequeBank ?? ''}</Text>
+                      <Text style={styles.chequeSub}>₹{(p.amount ?? 0).toLocaleString('en-IN')}{p.chequeDate ? ` · ${String(p.chequeDate).slice(0, 10)}` : ''}</Text>
+                    </View>
+                    {can(user, 'fee:collect') && (
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <TouchableOpacity onPress={() => setChequeStatus(p, 'success')} style={[styles.chBtn, { backgroundColor: colors.success }]}>
+                          <Text style={styles.chBtnText}>Clear</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setChequeStatus(p, 'bounced')} style={[styles.chBtn, { backgroundColor: colors.danger }]}>
+                          <Text style={styles.chBtnText}>Bounce</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
               {can(user, 'fee:collect') && ((detail.total ?? 0) - (detail.amountPaid ?? 0)) > 0 && (
                 <TouchableOpacity style={[styles.actBtn, { backgroundColor: colors.primary }]} onPress={() => openPay(detail)}>
@@ -228,6 +287,7 @@ export default function Fees() {
               <>
                 <Field label="Cheque No *" value={payForm.chequeNo} onChangeText={(v: string) => setPayForm({ ...payForm, chequeNo: v })} />
                 <Field label="Bank *" value={payForm.chequeBank} onChangeText={(v: string) => setPayForm({ ...payForm, chequeBank: v })} />
+                <Field label="Cheque date" value={payForm.chequeDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => setPayForm({ ...payForm, chequeDate: v })} />
               </>
             )}
             {['upi', 'card', 'bank_transfer'].includes(payForm.method) && (
@@ -283,4 +343,10 @@ const styles = StyleSheet.create({
   rowV: { ...font.body, color: colors.ink, fontWeight: '500' },
   actBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, borderRadius: radius.md },
   actText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  sectHead: { ...font.caption, color: colors.muted, textTransform: 'uppercase', marginBottom: 6 },
+  chequeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
+  chequeMain: { ...font.body, color: colors.ink, fontWeight: '500' },
+  chequeSub: { ...font.label, color: colors.muted, marginTop: 1 },
+  chBtn: { paddingHorizontal: 12, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  chBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
 });
