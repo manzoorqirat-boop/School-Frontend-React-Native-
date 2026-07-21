@@ -8,6 +8,17 @@ import { colors, spacing, font, radius, themeForRole, roleTheme } from '@/theme'
 import { Screen, Field, FormModal, Avatar } from '@/components/screen';
 import { useI18n } from '@/i18n';
 
+
+function passwordError(pw?: string): string | null {
+  if (!pw) return 'Password is required';
+  if (pw.length < 8) return 'At least 8 characters';
+  if (!/[a-z]/.test(pw)) return 'Needs a lowercase letter';
+  if (!/[A-Z]/.test(pw)) return 'Needs an uppercase letter';
+  if (!/[0-9]/.test(pw)) return 'Needs a number';
+  if (/^[a-zA-Z0-9]*$/.test(pw)) return 'Needs a special character (@ # $ !)';
+  return null;
+}
+
 export default function Settings() {
   const router = useRouter();
   const { user, school, signOut } = useAuth();
@@ -19,6 +30,9 @@ export default function Settings() {
 
   async function changePassword() {
     if (!pw.oldPassword || !pw.newPassword) { Alert.alert('Missing', 'Both fields are required.'); return; }
+    const err = passwordError(pw.newPassword);
+    if (err) { Alert.alert('Weak password', err); return; }
+    if (pw.newPassword !== pw.confirm) { Alert.alert('Mismatch', 'New password and confirmation do not match.'); return; }
     setSaving(true);
     try {
       await API.post('/api/auth/change-password', { oldPassword: pw.oldPassword, newPassword: pw.newPassword });
@@ -67,6 +81,7 @@ export default function Settings() {
         onSubmit={changePassword} submitting={saving} submitLabel="Update">
         <Field label="Current password" value={pw.oldPassword} secureTextEntry onChangeText={(v: string) => setPw({ ...pw, oldPassword: v })} />
         <Field label="New password" value={pw.newPassword} secureTextEntry onChangeText={(v: string) => setPw({ ...pw, newPassword: v })} />
+        <Field label="Confirm new password" value={pw.confirm} secureTextEntry onChangeText={(v: string) => setPw({ ...pw, confirm: v })} />
       </FormModal>
     </Screen>
   );
