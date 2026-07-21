@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl, TextInput } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl, TextInput, Linking, Share, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
@@ -12,6 +12,9 @@ import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal, Collapsible } from '@/components/screen';
 
 const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
+
+// Public student-profile links resolve on the web frontend, not the API host.
+const WEB_BASE = 'https://schoolprd.qmsofts.com';
 const SECTIONS = ['A','B','C','D','E'];
 const STATUS_TINT: Record<string, string> = { active: colors.emerald, inactive: colors.muted, graduated: colors.sky, transferred: colors.amber };
 const CATEGORIES = ['', 'GEN', 'OBC', 'SC', 'ST', 'EWS'];
@@ -50,6 +53,7 @@ export default function Students() {
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<any>(null);
   const [pinStatus, setPinStatus] = useState<'' | 'looking' | 'ok' | 'partial' | 'miss'>('');
+  const [sharing, setSharing] = useState(false);
   const manualHi = useRef<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
@@ -139,6 +143,90 @@ export default function Students() {
       if (saved._parent?.created) Alert.alert('Parent account created', `Username: ${saved._parent.username}\nPassword: ${saved._parent.password}`);
     } catch (e: any) { Alert.alert('Save failed', e.message); }
     finally { setSaving(false); }
+  }
+
+  // ── Share ─────────────────────────────────────────────────────────────
+  const publicLink = (s: any) => s?.shareEnabled && s?.shareToken ? `${WEB_BASE}/student-public?t=${s.shareToken}` : '';
+
+  function buildShareText(s: any, withLink = true) {
+    const schoolName = school?.name || 'QMSoft School';
+    const name = [s.firstName, s.lastName].filter(Boolean).join(' ');
+    const hi = s.firstNameHi ? ` (${s.firstNameHi}${s.lastNameHi ? ' ' + s.lastNameHi : ''})` : '';
+    const lines = [
+      schoolName, '', 'Student Profile',
+      `${name}${hi}`,
+      `Class ${s.class}-${s.section || ''} · Adm No #${s.admissionNo}`,
+    ];
+    if (s.fatherName) lines.push(`Father: ${s.fatherName}`);
+    if (s.fatherPhone) lines.push(`Phone: ${s.fatherPhone}`);
+    const link = publicLink(s);
+    if (withLink && link) lines.push('', `View profile: ${link}`);
+    return lines.join('\n');
+  }
+
+  // Enable sharing (idempotent-ish): returns the current or newly-minted token.
+  async function ensureShare(s: any): Promise<any> {
+    if (s.shareEnabled && s.shareToken) return s;
+    setSharing(true);
+    try {
+      const resp = await API.post(`/api/students/${s._id}/share`);
+      const updated = { ...s, shareToken: resp.token, shareEnabled: true };
+      setAll((prev: any[]) => prev.map((x: any) => x._id === s._id ? updated : x));
+      setView((v: any) => v && v._id === s._id ? updated : v);
+      return updated;
+    } finally { setSharing(false); }
+  }
+
+  async function disableShare(s: any) {
+    try {
+      await API.del(`/api/students/${s._id}/share`);
+      const updated = { ...s, shareToken: undefined, shareEnabled: false };
+      setAll((prev: any[]) => prev.map((x: any) => x._id === s._id ? updated : x));
+      setView((v: any) => v && v._id === s._id ? updated : v);
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+  }
+
+  async function shareWhatsApp(s0: any) {
+    try {
+      const s = await ensureShare(s0);
+      const phone = (s.fatherPhone || s.motherPhone || s.phone || '').replace(/\D/g, '');
+      const text = encodeURIComponent(buildShareText(s));
+      const url = phone ? `https://wa.me/91${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+      const ok = await Linking.canOpenURL(url);
+      if (!ok) { Alert.alert('WhatsApp not available', 'Install WhatsApp or use another share option.'); return; }
+      Linking.openURL(url);
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+  }
+  async function shareSMS(s0: any) {
+    try {
+      const s = await ensureShare(s0);
+      const phone = (s.fatherPhone || s.motherPhone || s.phone || '').replace(/\D/g, '');
+      const body = encodeURIComponent(buildShareText(s));
+      const sep = Platform.OS === 'ios' ? '&' : '?';
+      Linking.openURL(`sms:${phone ? '+91' + phone : ''}${sep}body=${body}`);
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+  }
+  async function shareEmail(s0: any) {
+    try {
+      const s = await ensureShare(s0);
+      const subject = encodeURIComponent(`Student Profile — ${[s.firstName, s.lastName].filter(Boolean).join(' ')}`);
+      const body = encodeURIComponent(buildShareText(s));
+      Linking.openURL(`mailto:${s.email || ''}?subject=${subject}&body=${body}`);
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+  }
+  async function shareSheet(s0: any) {
+    try {
+      const s = await ensureShare(s0);
+      await Share.share({ message: buildShareText(s), url: publicLink(s) || undefined });
+    } catch { /* user dismissed */ }
+  }
+  async function copyLink(s0: any) {
+    try {
+      const s = await ensureShare(s0);
+      const link = publicLink(s);
+      if (!link) return;
+      await Share.share({ message: link });   // no clipboard dep; share sheet lets them copy
+    } catch { /* dismissed */ }
   }
 
   async function deactivate(s: any) {
@@ -244,6 +332,36 @@ export default function Students() {
             <Detail k="Religion" v={view.religion} />
             <Detail k="Address" v={[view.address, view.city, view.state, view.pincode].filter(Boolean).join(', ')} />
             <Detail k="Status" v={view.status} />
+
+            {/* Share — public read-only profile link + composers */}
+            {can(user, 'student:update') && (view.status ?? 'active') === 'active' && (
+              <View style={styles.shareBox}>
+                <View style={styles.shareHead}>
+                  <Text style={styles.shareTitle}>Share profile</Text>
+                  {view.shareEnabled && (
+                    <TouchableOpacity onPress={() => disableShare(view)} hitSlop={6}>
+                      <Text style={styles.shareOff}>Turn off link</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <Text style={styles.shareHint}>
+                  {view.shareEnabled
+                    ? 'A read-only link is active. Anyone with it can view this profile.'
+                    : 'Sharing creates a read-only public link for parents. It activates on first share.'}
+                </Text>
+                <View style={styles.shareRow}>
+                  <ShareBtn icon="logo-whatsapp" label="WhatsApp" tint="#25D366" disabled={sharing} onPress={() => shareWhatsApp(view)} />
+                  <ShareBtn icon="chatbubble-outline" label="SMS" tint={colors.info} disabled={sharing} onPress={() => shareSMS(view)} />
+                  <ShareBtn icon="mail-outline" label="Email" tint={colors.primary} disabled={sharing} onPress={() => shareEmail(view)} />
+                </View>
+                <View style={styles.shareRow}>
+                  <ShareBtn icon="link-outline" label="Copy link" tint={colors.slate} disabled={sharing} onPress={() => copyLink(view)} />
+                  <ShareBtn icon="share-outline" label="More…" tint={colors.slate} disabled={sharing} onPress={() => shareSheet(view)} />
+                  <View style={{ flex: 1 }} />
+                </View>
+              </View>
+            )}
+
             {can(user, 'student:delete') && (view.status ?? 'active') === 'active' && (
               <TouchableOpacity onPress={() => deactivate(view)} style={styles.dangerBtn}>
                 <Ionicons name="ban" size={18} color={colors.danger} />
@@ -331,12 +449,29 @@ export default function Students() {
   );
 }
 
+function ShareBtn({ icon, label, tint, onPress, disabled }: { icon: any; label: string; tint: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <TouchableOpacity onPress={onPress} disabled={disabled} style={[styles.shareBtn, disabled && { opacity: 0.5 }]}>
+      <Ionicons name={icon} size={18} color={tint} />
+      <Text style={styles.shareBtnText}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 function Detail({ k, v }: { k: string; v?: any }) {
   return <View style={styles.detailRow}><Text style={styles.detailK}>{k}</Text><Text style={styles.detailV}>{v || '—'}</Text></View>;
 }
 
 const styles = StyleSheet.create({
   pinHint: { ...font.caption, color: colors.slate, marginTop: -spacing.xs, marginBottom: spacing.xs, textTransform: 'none', letterSpacing: 0 },
+  shareBox: { marginTop: spacing.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, borderRadius: radius.md, gap: spacing.sm },
+  shareHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  shareTitle: { ...font.title, color: colors.ink },
+  shareOff: { ...font.label, color: colors.danger, fontWeight: '600' },
+  shareHint: { ...font.caption, color: colors.muted, textTransform: 'none', letterSpacing: 0 },
+  shareRow: { flexDirection: 'row', gap: spacing.sm },
+  shareBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, borderRadius: radius.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  shareBtnText: { ...font.label, color: colors.ink, fontWeight: '600' },
   addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line, gap: 12 },
   detailK: { ...font.label, color: colors.muted },
