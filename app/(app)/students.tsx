@@ -49,6 +49,7 @@ export default function Students() {
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<any>(null);
+  const [pinStatus, setPinStatus] = useState<'' | 'looking' | 'ok' | 'partial' | 'miss'>('');
   const manualHi = useRef<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
@@ -159,6 +160,33 @@ export default function Students() {
 
   const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
 
+  // Pincode → city/state autofill via the backend lookup proxy. Debounced so a
+  // 6-digit entry fires exactly one request. Never blocks manual entry: on
+  // miss/offline the fields stay editable and we just show a hint.
+  const pinTimer = useRef<any>(null);
+  function onPincode(v: string) {
+    const pin = v.replace(/\D/g, '').slice(0, 6);
+    set('pincode', pin);
+    setPinStatus('');
+    if (pinTimer.current) clearTimeout(pinTimer.current);
+    if (!/^[1-9]\d{5}$/.test(pin)) return;
+    pinTimer.current = setTimeout(async () => {
+      setPinStatus('looking');
+      try {
+        const r = await API.get(`/api/lookups/pincode/${pin}`);
+        setForm((p: any) => ({
+          ...p,
+          // Don't clobber anything the user already typed.
+          city: p.city?.trim() ? p.city : (r.city ?? p.city),
+          state: p.state?.trim() ? p.state : (r.state ?? p.state),
+        }));
+        setPinStatus(r.cityNeedsManualEntry ? 'partial' : 'ok');
+      } catch {
+        setPinStatus('miss');   // 404/offline — leave fields for manual entry
+      }
+    }, 500);
+  }
+
   if (loading) return <Screen title={t('nav.students', 'Students')} colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
 
   return (
@@ -264,7 +292,11 @@ export default function Students() {
           <Field label="Address" value={form.address} onChangeText={(v: string) => set('address', v)} />
           <Field label="City" value={form.city} onChangeText={(v: string) => set('city', v)} />
           <Field label="State" value={form.state} onChangeText={(v: string) => set('state', v)} />
-          <Field label="Pincode" value={form.pincode} keyboardType="numeric" onChangeText={(v: string) => set('pincode', v)} />
+          <Field label="Pincode" value={form.pincode} keyboardType="numeric" onChangeText={onPincode} />
+          {pinStatus === 'looking' && <Text style={styles.pinHint}>Looking up city & state…</Text>}
+          {pinStatus === 'ok' && <Text style={[styles.pinHint, { color: colors.success }]}>✓ City & state auto-filled</Text>}
+          {pinStatus === 'partial' && <Text style={[styles.pinHint, { color: colors.warning }]}>State filled — enter city manually</Text>}
+          {pinStatus === 'miss' && <Text style={[styles.pinHint, { color: colors.muted }]}>Couldn't auto-detect — enter city & state manually</Text>}
         </Collapsible>
 
         <Collapsible title="Category & Documents">
@@ -304,6 +336,7 @@ function Detail({ k, v }: { k: string; v?: any }) {
 }
 
 const styles = StyleSheet.create({
+  pinHint: { ...font.caption, color: colors.slate, marginTop: -spacing.xs, marginBottom: spacing.xs, textTransform: 'none', letterSpacing: 0 },
   addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line, gap: 12 },
   detailK: { ...font.label, color: colors.muted },
