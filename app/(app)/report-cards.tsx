@@ -22,6 +22,18 @@ export default function ReportCards() {
     : (Array.isArray(user?.parentOf) ? user!.parentOf : []);
 
   const [activeChild, setActiveChild] = useState<string | undefined>(childIds[0]);
+  const [childNames, setChildNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (childIds.length < 2) return;
+    API.get('/api/students?limit=20')
+      .then((d: any) => {
+        const map: Record<string, string> = {};
+        (d.items ?? []).forEach((st: any) => { map[st._id] = `${st.firstName} ${st.lastName ?? ''}`.trim(); });
+        setChildNames(map);
+      })
+      .catch(() => {});
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
   const [report, setReport] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -60,7 +72,7 @@ export default function ReportCards() {
             return (
               <TouchableOpacity key={id} onPress={() => setActiveChild(id)}
                 style={[styles.childChip, on && { backgroundColor: rt.accent }]}>
-                <Text style={[styles.childText, on && { color: '#fff' }]}>Child {i + 1}</Text>
+                <Text style={[styles.childText, on && { color: '#fff' }]}>{childNames[id] ?? `Child ${i + 1}`}</Text>
               </TouchableOpacity>
             );
           })}
