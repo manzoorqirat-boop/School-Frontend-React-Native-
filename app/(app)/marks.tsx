@@ -67,6 +67,12 @@ export default function Marks() {
   }
 
   async function save() {
+    const bad = grid.filter(r => r.status !== 'absent' && r.marks !== ''
+      && (isNaN(parseFloat(r.marks)) || parseFloat(r.marks) > r.maxMarks || parseFloat(r.marks) < 0));
+    if (bad.length) {
+      Alert.alert('Invalid marks', `${bad.length} entr${bad.length === 1 ? 'y is' : 'ies are'} over max marks or invalid (shown in red). Fix before saving.`);
+      return;
+    }
     setSaving(true);
     try {
       const cells = grid.map(r => ({
@@ -136,7 +142,8 @@ export default function Marks() {
                     <Text style={styles.roll}>Roll {r.rollNo ?? '—'}</Text>
                   </View>
                   <TextInput
-                    style={[styles.markInput, absent && styles.markDisabled]}
+                    style={[styles.markInput, absent && styles.markDisabled,
+                      !absent && r.marks !== '' && (parseFloat(r.marks) > r.maxMarks || parseFloat(r.marks) < 0) && styles.markInvalid]}
                     value={absent ? '' : r.marks}
                     editable={!absent}
                     onChangeText={v => setMark(r.studentId, v)}
@@ -168,6 +175,7 @@ const styles = StyleSheet.create({
   roll: { ...font.label, color: colors.muted },
   markInput: { width: 56, height: 40, borderRadius: radius.sm, backgroundColor: colors.bg, textAlign: 'center',
     ...font.title, color: colors.ink },
+  markInvalid: { borderWidth: 1.5, borderColor: colors.danger, color: colors.danger },
   markDisabled: { backgroundColor: colors.line },
   outOf: { ...font.label, color: colors.muted },
   absBtn: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.bg,
