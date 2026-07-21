@@ -83,7 +83,7 @@ export default function Fees() {
 
   return (
     <Screen title={t('nav.fees', 'Fees')} subtitle={`₹${totalDue.toLocaleString('en-IN')} outstanding`} colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={<TouchableOpacity onPress={doExport} style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="share-outline" size={22} color="#fff" /></TouchableOpacity>}>
+      right={<TouchableOpacity onPress={doExport} style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="share-outline" size={22} color={colors.ink} /></TouchableOpacity>}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
         <SearchBar value={q} onChangeText={setQ} placeholder="Student, invoice no…" />
         <ChipPicker label="Status" options={['', 'pending', 'partial', 'paid', 'overdue']} value={fStatus} onChange={setFStatus} />
