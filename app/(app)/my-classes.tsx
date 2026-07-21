@@ -1,56 +1,144 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, ListItem, EmptyState, Loading } from '@/components/screen';
-import { Ionicons } from '@expo/vector-icons';
+import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
 
+const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
+const SECTIONS = ['A','B','C','D','E'];
+const ADMINISH = ['school_admin', 'principal', 'superadmin'];
+
+// Teachers: shows YOUR class assignments (these gate attendance marking).
+// Admins: manage ALL assignments — without one, a teacher gets 403 on rosters.
 export default function MyClasses() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
-  const [classes, setClasses] = useState<any[]>([]);
+  const isAdmin = ADMINISH.includes(user?.role ?? '');
+
+  const [items, setItems] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState<any>({});
 
   const load = useCallback(async () => {
-    try { const data = await API.get('/api/class-teachers/my-classes'); setClasses(data.items ?? []); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+    try {
+      const data = await API.get(isAdmin ? '/api/class-teachers' : '/api/class-teachers/my-classes');
+      setItems(data.items ?? []);
+    } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setLoading(false); }
-  }, []);
+  }, [isAdmin]);
   useEffect(() => { load(); }, [load]);
-  const onRefresh = useCallback(async () => { setRefreshing(true); await load(); setRefreshing(false); }, [load]);
+
+  async function openCreate() {
+    setForm({ class: '1', section: 'A' });
+    setFormOpen(true);
+    if (!teachers.length) {
+      try { const d = await API.get('/api/users?role=teacher&limit=100'); setTeachers(d.items ?? []); } catch {}
+    }
+  }
+
+  async function save() {
+    if (!form.teacherUserId) { Alert.alert('Missing', 'Select a teacher.'); return; }
+    setSaving(true);
+    try {
+      const created = await API.post('/api/class-teachers', {
+        teacherUserId: form.teacherUserId, class: form.class, section: form.section,
+        subject: form.subject?.trim() || null,
+      });
+      setItems(prev => [created, ...prev]);
+      setFormOpen(false);
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+    finally { setSaving(false); }
+  }
+
+  function confirmDelete(a: any) {
+    Alert.alert('Remove assignment', `Remove this assignment? The teacher will lose attendance-marking rights for ${a.class}-${a.section}.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: async () => {
+        try { await API.del(`/api/class-teachers/${a._id}`); setItems(prev => prev.filter(x => x._id !== a._id)); }
+        catch (e: any) { Alert.alert('Failed', e.message); }
+      }},
+    ]);
+  }
+
+  const teacherName = (a: any) => a.teacherName ?? teachers.find(x => x._id === a.teacherUserId)?.name ?? '';
 
   if (loading) return <Screen title={t('nav.myClasses', 'My Classes')} colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
 
   return (
-    <Screen title={t('nav.myClasses', 'My Classes')} subtitle={`${classes.length} assigned`} colors={rt.gradient} onBack={() => router.back()} scroll={false}>
+    <Screen title={isAdmin ? 'Class Teachers' : t('nav.myClasses', 'My Classes')}
+      subtitle={isAdmin ? 'Assignments gate attendance marking' : `${items.length} assignment(s)`}
+      colors={rt.gradient} onBack={() => router.back()} scroll={false}
+      right={isAdmin ? <TouchableOpacity onPress={openCreate} style={styles.hBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
       <FlatList
-        data={classes}
-        keyExtractor={(c, i) => c._id ?? String(i)}
+        data={items}
+        keyExtractor={a => a._id}
         contentContainerStyle={{ padding: spacing.lg }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={rt.accent} />}
-        ListEmptyComponent={<EmptyState icon="easel" text="No classes assigned yet." />}
-        renderItem={({ item: c }) => (
-          <ListItem
-            leading={<View style={[styles.badge, { backgroundColor: rt.accent + '18' }]}>
-              <Text style={[styles.badgeText, { color: rt.accent }]}>{c.class}-{c.section}</Text>
-            </View>}
-            title={`Class ${c.class} · Section ${c.section}`}
-            subtitle={`${c.subject ?? 'Class teacher'}${c.isPrimary ? ' · Primary' : ''}`}
-            onPress={() => router.push('/(app)/attendance')}
-          />
+        ListEmptyComponent={
+          <EmptyState icon="easel"
+            text={isAdmin
+              ? 'No class-teacher assignments. Teachers cannot mark attendance until assigned — use + to assign.'
+              : 'No classes assigned to you yet. Ask your admin to assign you — you need an assignment to mark attendance.'} />
+        }
+        renderItem={({ item: a }) => (
+          <View style={styles.row}>
+            <View style={[styles.badge, { backgroundColor: rt.accent + '18' }]}>
+              <Text style={[styles.badgeText, { color: rt.accent }]}>{a.class}-{a.section}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{isAdmin ? (teacherName(a) || 'Teacher') : `Class ${a.class} · Section ${a.section}`}</Text>
+              <Text style={styles.sub}>{a.subject ? `Subject: ${a.subject}` : 'Homeroom (all subjects)'}{a.academicYear ? ` · ${a.academicYear}` : ''}</Text>
+            </View>
+            {isAdmin && (
+              <TouchableOpacity onPress={() => confirmDelete(a)} style={{ padding: 6 }}>
+                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       />
+
+      <FormModal visible={formOpen} title="Assign class teacher" onClose={() => setFormOpen(false)}
+        onSubmit={save} submitting={saving} submitLabel="Assign">
+        <Text style={styles.pickLabel}>Teacher *</Text>
+        {teachers.length === 0 && <Text style={styles.hint}>Loading teachers…</Text>}
+        <View style={{ maxHeight: 150 }}>
+          <ScrollView>
+            {teachers.map(tc => (
+              <TouchableOpacity key={tc._id} style={styles.teachRow} onPress={() => setForm({ ...form, teacherUserId: tc._id })}>
+                <Ionicons name={form.teacherUserId === tc._id ? 'radio-button-on' : 'radio-button-off'} size={18}
+                  color={form.teacherUserId === tc._id ? colors.primary : colors.muted} />
+                <Text style={styles.teachName}>{tc.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+        <ChipPicker label="Class" options={CLASSES} value={form.class} onChange={(v) => setForm({ ...form, class: v })} />
+        <ChipPicker label="Section" options={SECTIONS} value={form.section} onChange={(v) => setForm({ ...form, section: v })} />
+        <Field label="Subject (blank = homeroom)" value={form.subject} placeholder="e.g. Maths" onChangeText={(v: string) => setForm({ ...form, subject: v })} />
+      </FormModal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  badge: { width: 52, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { ...font.title, fontWeight: '800' },
+  hBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: spacing.md, marginBottom: spacing.sm },
+  badge: { minWidth: 52, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  badgeText: { ...font.title },
+  title: { ...font.title, color: colors.ink },
+  sub: { ...font.label, color: colors.muted, marginTop: 1 },
+  pickLabel: { ...font.label, color: colors.slate },
+  teachRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
+  teachName: { ...font.body, color: colors.ink },
+  hint: { ...font.label, color: colors.muted, fontStyle: 'italic' },
 });
