@@ -44,7 +44,7 @@ export default function Portal() {
         title={`Hi, ${(user?.name ?? 'there').split(' ')[0]} 👋`}
         right={<View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity onPress={() => router.push('/(app)/settings')} style={styles.avatar}>
-            <Ionicons name="settings-outline" size={20} color="#fff" />
+            <Ionicons name="settings-outline" size={20} color={colors.ink} />
           </TouchableOpacity>
           <TouchableOpacity onPress={signOut} style={styles.avatar}>
             <Text style={styles.avatarText}>{(user?.name ?? 'U').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}</Text>
@@ -66,9 +66,8 @@ export default function Portal() {
   );
 }
 const styles = StyleSheet.create({
-  avatar: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  avatar: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   statRow: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, marginTop: -spacing.lg },
   section: { ...font.h3, color: colors.ink, paddingHorizontal: spacing.xl, marginTop: spacing.xl, marginBottom: spacing.md },
 });
