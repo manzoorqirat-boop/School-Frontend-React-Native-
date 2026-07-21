@@ -1,131 +1,258 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, EmptyState, Loading, FormModal } from '@/components/screen';
-import { Chip } from '@/components/ui';
-import { GradientButton } from '@/components/ui';
+import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
+
+const STATUS_TINT: Record<string, string> = { draft: colors.muted, active: colors.success, closed: colors.info };
+const ADMINISH = ['school_admin', 'principal', 'superadmin'];
+
+type QDraft = { text: string; options: string[] };
 
 export default function Polls() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
+  const canManage = ADMINISH.includes(user?.role ?? '');
+
   const [polls, setPolls] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [active, setActive] = useState<any>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [results, setResults] = useState<any | null>(null);
-  const [voting, setVoting] = useState(false);
+  const [results, setResults] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState<any>({});
+  const [qs, setQs] = useState<QDraft[]>([]);
 
   const load = useCallback(async () => {
-    try { const data = await API.get<any[]>('/api/polls'); setPolls(Array.isArray(data) ? data : []); }
+    try { const data = await API.get<any>('/api/polls'); setPolls(Array.isArray(data) ? data : data.items ?? []); }
     catch (e: any) { Alert.alert('Error', e.message); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
-  const onRefresh = useCallback(async () => { setRefreshing(true); await load(); setRefreshing(false); }, [load]);
 
+  // ── Vote ────────────────────────────────────────────────────────────────
   function openPoll(p: any) { setActive(p); setAnswers({}); setResults(null); }
 
   async function vote() {
-    if (!active) return;
-    const qs = active.questions ?? [];
-    const payload = qs.map((q: any) => ({ questionId: q._id, optionId: answers[q._id] })).filter((a: any) => a.optionId);
-    if (payload.length !== qs.length) { Alert.alert('Incomplete', 'Please answer all questions.'); return; }
-    setVoting(true);
+    const payload = (active.questions ?? [])
+      .filter((q: any) => answers[q._id])
+      .map((q: any) => ({ questionId: q._id, optionId: answers[q._id] }));
+    if (payload.length !== (active.questions ?? []).length) { Alert.alert('Incomplete', 'Answer every question before submitting.'); return; }
+    setSaving(true);
     try {
       await API.post(`/api/polls/${active._id}/vote`, { answers: payload });
-      Alert.alert('Thanks!', 'Your vote was recorded.');
-      await loadResults(active);
-    } catch (e: any) {
-      if (e.status === 409) { Alert.alert('Already voted', 'You have already voted in this poll.'); await loadResults(active); }
-      else Alert.alert('Vote failed', e.message);
-    } finally { setVoting(false); }
+      Alert.alert('Thanks!', 'Your vote has been recorded.');
+      loadResults(active);
+    } catch (e: any) { Alert.alert(e.message?.includes('already') ? 'Already voted' : 'Failed', e.message); }
+    finally { setSaving(false); }
   }
 
   async function loadResults(p: any) {
     try { const r = await API.get(`/api/polls/${p._id}/results`); setResults(r); } catch {}
   }
 
+  // ── Manage ──────────────────────────────────────────────────────────────
+  function openCreate() {
+    setForm({ targetRoles: 'parent,teacher' });
+    setQs([{ text: '', options: ['', ''] }]);
+    setCreateOpen(true);
+  }
+
+  async function create() {
+    if (!form.title?.trim()) { Alert.alert('Missing', 'Poll title is required.'); return; }
+    const cleanQs = qs
+      .map(q => ({ text: q.text.trim(), options: q.options.map(o => o.trim()).filter(Boolean).map(o => ({ text: o })) }))
+      .filter(q => q.text);
+    if (!cleanQs.length) { Alert.alert('Missing', 'Add at least one question.'); return; }
+    const short = cleanQs.find(q => q.options.length < 2);
+    if (short) { Alert.alert('Invalid', `"${short.text}" needs at least 2 options.`); return; }
+    setSaving(true);
+    try {
+      const created = await API.post('/api/polls', {
+        title: form.title.trim(), description: form.description?.trim() || undefined,
+        targetRoles: String(form.targetRoles ?? 'parent,teacher').split(',').map((s: string) => s.trim()).filter(Boolean),
+        status: 'active',
+        questions: cleanQs,
+      });
+      setPolls(prev => [created, ...prev]);
+      setCreateOpen(false);
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function closePoll(p: any) {
+    try {
+      const updated = await API.put(`/api/polls/${p._id}`, { ...p, status: 'closed' });
+      setPolls(prev => prev.map(x => x._id === p._id ? updated : x));
+      setActive(null);
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+  }
+  function confirmDelete(p: any) {
+    Alert.alert('Delete poll', `Delete "${p.title}" and all its votes?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await API.del(`/api/polls/${p._id}`); setPolls(prev => prev.filter(x => x._id !== p._id)); setActive(null); }
+        catch (e: any) { Alert.alert('Failed', e.message); }
+      }},
+    ]);
+  }
+
   if (loading) return <Screen title={t('nav.polls', 'Polls')} colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
 
   return (
-    <Screen title={t('nav.polls', 'Polls')} subtitle={`${polls.length} active`} colors={rt.gradient} onBack={() => router.back()} scroll={false}>
+    <Screen title={t('nav.polls', 'Polls')} subtitle={`${polls.length} polls`} colors={rt.gradient} onBack={() => router.back()} scroll={false}
+      right={canManage ? <TouchableOpacity onPress={openCreate} style={styles.hBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
       <FlatList
         data={polls}
         keyExtractor={p => p._id}
         contentContainerStyle={{ padding: spacing.lg }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={rt.accent} />}
-        ListEmptyComponent={<EmptyState icon="bar-chart" text="No polls right now." />}
+        ListEmptyComponent={<EmptyState icon="bar-chart" text={canManage ? 'No polls yet. Use + to create one.' : 'No polls right now.'} />}
         renderItem={({ item: p }) => (
-          <TouchableOpacity activeOpacity={0.85} onPress={() => openPoll(p)} style={styles.card}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{p.title}</Text>
-              {p.description ? <Text style={styles.desc} numberOfLines={2}>{p.description}</Text> : null}
-              <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                <Chip label={`${(p.questions ?? []).length} question${(p.questions ?? []).length === 1 ? '' : 's'}`} tint={rt.accent} />
-                {p.status ? <Chip label={p.status} tint={colors.emerald} /> : null}
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-          </TouchableOpacity>
+          <ListItem
+            title={p.title}
+            subtitle={`${(p.questions ?? []).length} question(s) · for ${(p.targetRoles ?? []).join(', ') || 'everyone'}`}
+            badge={p.status ?? 'active'} badgeTint={STATUS_TINT[p.status ?? 'active']}
+            onPress={() => openPoll(p)}
+          />
         )}
       />
 
-      <FormModal
-        visible={!!active} title={active?.title ?? ''} onClose={() => setActive(null)}
-        onSubmit={results ? () => setActive(null) : vote}
-        submitting={voting} submitLabel={results ? 'Done' : 'Submit Vote'}
-      >
-        {active && !results && (active.questions ?? []).map((q: any) => (
-          <View key={q._id} style={{ gap: 8, marginBottom: spacing.md }}>
-            <Text style={styles.q}>{q.text ?? q.question}</Text>
-            {(q.options ?? []).map((o: any) => {
-              const on = answers[q._id] === o._id;
-              return (
-                <TouchableOpacity key={o._id} onPress={() => setAnswers({ ...answers, [q._id]: o._id })}
-                  style={[styles.opt, on && { borderColor: rt.accent, backgroundColor: rt.accent + '12' }]}>
-                  <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={20} color={on ? rt.accent : colors.muted} />
-                  <Text style={styles.optText}>{o.text ?? o.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ))}
-        {results && (
-          <View style={{ gap: 8 }}>
-            <Text style={styles.resultsHead}>Total votes: {results.totalVotes ?? 0}</Text>
-            {(results.tallies ?? []).map((t: any, i: number) => (
-              <View key={i} style={styles.tallyRow}>
-                <Text style={styles.tallyText}>Option {t.optionId?.slice(-4) ?? i}</Text>
-                <Text style={styles.tallyCount}>{t.count}</Text>
+      {/* Vote / results / manage */}
+      <FormModal visible={!!active} title={active?.title ?? ''} onClose={() => setActive(null)}
+        onSubmit={results || active?.status === 'closed' ? () => setActive(null) : vote}
+        submitting={saving}
+        submitLabel={results || active?.status === 'closed' ? 'Close' : 'Submit vote'}>
+        {active && !results && active.status !== 'closed' && (
+          <>
+            {active.description ? <Text style={styles.desc}>{active.description}</Text> : null}
+            {(active.questions ?? []).map((q: any) => (
+              <View key={q._id} style={{ marginBottom: spacing.md }}>
+                <Text style={styles.qText}>{q.text}</Text>
+                {(q.options ?? []).map((o: any) => {
+                  const on = answers[q._id] === o._id;
+                  return (
+                    <TouchableOpacity key={o._id} onPress={() => setAnswers({ ...answers, [q._id]: o._id })} style={styles.optRow}>
+                      <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={19} color={on ? colors.primary : colors.muted} />
+                      <Text style={styles.optText}>{o.text}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             ))}
+            {active.showResultsBeforeClose !== false && (
+              <TouchableOpacity onPress={() => loadResults(active)}>
+                <Text style={styles.link}>View results instead</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
+        {active && (results || active.status === 'closed') && (
+          <>
+            {!results && <TouchableOpacity onPress={() => loadResults(active)}><Text style={styles.link}>Load results</Text></TouchableOpacity>}
+            {(results?.questions ?? []).map((q: any) => {
+              const total = (q.options ?? []).reduce((a: number, o: any) => a + (o.votes ?? 0), 0);
+              return (
+                <View key={q.questionId ?? q._id} style={{ marginBottom: spacing.md }}>
+                  <Text style={styles.qText}>{q.text}</Text>
+                  {(q.options ?? []).map((o: any) => {
+                    const pct = total ? Math.round(((o.votes ?? 0) / total) * 100) : 0;
+                    return (
+                      <View key={o.optionId ?? o._id} style={{ marginBottom: 6 }}>
+                        <View style={styles.resRow}>
+                          <Text style={styles.optText}>{o.text}</Text>
+                          <Text style={styles.resPct}>{pct}% ({o.votes ?? 0})</Text>
+                        </View>
+                        <View style={styles.barTrack}><View style={[styles.barFill, { width: `${pct}%` as any, backgroundColor: rt.accent }]} /></View>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </>
+        )}
+
+        {active && canManage && (
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+            {active.status === 'active' && (
+              <TouchableOpacity style={styles.mBtn} onPress={() => closePoll(active)}>
+                <Ionicons name="stop-circle-outline" size={15} color={colors.ink} /><Text style={styles.mText}>Close poll</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={[styles.mBtn, { borderColor: colors.danger + '55' }]} onPress={() => confirmDelete(active)}>
+              <Ionicons name="trash-outline" size={15} color={colors.danger} /><Text style={[styles.mText, { color: colors.danger }]}>Delete</Text>
+            </TouchableOpacity>
           </View>
         )}
+      </FormModal>
+
+      {/* Create */}
+      <FormModal visible={createOpen} title="New poll" onClose={() => setCreateOpen(false)}
+        onSubmit={create} submitting={saving} submitLabel="Publish poll">
+        <Field label="Title *" value={form.title} onChangeText={(v: string) => setForm({ ...form, title: v })} />
+        <Field label="Description" value={form.description} onChangeText={(v: string) => setForm({ ...form, description: v })} />
+        <Field label="Target roles (comma-separated)" value={form.targetRoles} placeholder="parent,teacher" onChangeText={(v: string) => setForm({ ...form, targetRoles: v })} />
+
+        {qs.map((q, qi) => (
+          <View key={qi} style={styles.qCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Field label={`Question ${qi + 1} *`} value={q.text}
+                  onChangeText={(v: string) => setQs(qs.map((x, j) => j === qi ? { ...x, text: v } : x))} />
+              </View>
+              {qs.length > 1 && (
+                <TouchableOpacity onPress={() => setQs(qs.filter((_, j) => j !== qi))} style={{ paddingTop: 18 }}>
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {q.options.map((o, oi) => (
+              <View key={oi} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Field placeholder={`Option ${oi + 1}`} value={o}
+                    onChangeText={(v: string) => setQs(qs.map((x, j) => j === qi ? { ...x, options: x.options.map((y, k) => k === oi ? v : y) } : x))} />
+                </View>
+                {q.options.length > 2 && (
+                  <TouchableOpacity onPress={() => setQs(qs.map((x, j) => j === qi ? { ...x, options: x.options.filter((_, k) => k !== oi) } : x))}>
+                    <Ionicons name="close-circle-outline" size={18} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            <TouchableOpacity onPress={() => setQs(qs.map((x, j) => j === qi ? { ...x, options: [...x.options, ''] } : x))}>
+              <Text style={styles.link}>+ Add option</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+        <TouchableOpacity onPress={() => setQs([...qs, { text: '', options: ['', ''] }])}>
+          <Text style={styles.link}>+ Add question</Text>
+        </TouchableOpacity>
       </FormModal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.card,
-    borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.sm },
-  title: { ...font.title, color: colors.ink },
-  desc: { ...font.label, color: colors.muted, marginTop: 2 },
-  q: { ...font.title, color: colors.ink },
-  opt: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: spacing.md, borderRadius: radius.md,
-    borderWidth: 1.5, borderColor: colors.line, backgroundColor: colors.card },
+  hBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  desc: { ...font.body, color: colors.slate, marginBottom: spacing.sm },
+  qText: { ...font.title, color: colors.ink, marginBottom: 6 },
+  optRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
   optText: { ...font.body, color: colors.ink, flex: 1 },
-  resultsHead: { ...font.title, color: colors.ink },
-  tallyRow: { flexDirection: 'row', justifyContent: 'space-between', padding: spacing.md,
-    backgroundColor: colors.card, borderRadius: radius.md },
-  tallyText: { ...font.body, color: colors.slate },
-  tallyCount: { ...font.title, color: colors.primary },
+  link: { ...font.label, color: colors.primary, fontWeight: '600', paddingVertical: 6 },
+  resRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 },
+  resPct: { ...font.label, color: colors.slate, fontWeight: '700' },
+  barTrack: { height: 6, borderRadius: 3, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
+  barFill: { height: 6, borderRadius: 3 },
+  qCard: { backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: spacing.sm, gap: 4, marginTop: spacing.sm },
+  mBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 40, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.line },
+  mText: { fontSize: 13, fontWeight: '600', color: colors.ink },
 });
