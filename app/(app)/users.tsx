@@ -77,7 +77,7 @@ export default function Users() {
 
   return (
     <Screen title={t('nav.users', 'Users')} subtitle={`${filtered.length} accounts`} colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={can(user, 'user:manage') ? <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={24} color="#fff" /></TouchableOpacity> : undefined}>
+      right={can(user, 'user:manage') ? <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
         <SearchBar value={q} onChangeText={setQ} placeholder="Name or username…" />
         <ChipPicker label="Role" options={['', ...ROLES]} value={fRole} onChange={setFRole} />
@@ -148,7 +148,7 @@ function Detail({ k, v }: { k: string; v?: any }) {
 }
 
 const styles = StyleSheet.create({
-  addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line },
   detailK: { ...font.label, color: colors.muted },
   detailV: { ...font.body, color: colors.ink, fontWeight: '600' },
