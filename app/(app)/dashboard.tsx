@@ -47,6 +47,7 @@ export default function Dashboard() {
     { key: 'students', label: t('nav.students', 'Students'), icon: 'people-outline', route: '/(app)/students', show: true },
     { key: 'promote', label: t('nav.promote', 'Promote'), icon: 'trending-up-outline', route: '/(app)/promote', show: r === 'superadmin' || r === 'school_admin' || r === 'principal' },
     { key: 'attendance', label: t('nav.attendance', 'Attendance'), icon: 'checkbox-outline', route: '/(app)/attendance', show: true },
+    { key: 'staff-attendance', label: t('nav.staffAttendance', 'Staff Attendance'), icon: 'briefcase-outline', route: '/(app)/teacher-attendance', show: r === 'superadmin' || r === 'school_admin' || r === 'principal' },
     { key: 'marks', label: t('nav.marks', 'Marks Entry'), icon: 'create-outline', route: '/(app)/marks', show: r === 'teacher' },
     { key: 'my-classes', label: t('nav.myClasses', 'My Classes'), icon: 'easel-outline', route: '/(app)/my-classes', show: r === 'teacher' },
     { key: 'exams', label: t('nav.exams', 'Exams'), icon: 'document-text-outline', route: '/(app)/exams', show: true },
