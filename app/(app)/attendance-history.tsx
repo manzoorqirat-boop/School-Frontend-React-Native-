@@ -20,6 +20,18 @@ export default function AttendanceHistory() {
     ? (user?.studentId ? [user.studentId] : [])
     : (Array.isArray(user?.parentOf) ? user!.parentOf : []);
   const [child, setChild] = useState<string | undefined>(childIds[0]);
+  const [childNames, setChildNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (childIds.length < 2) return;   // names only needed for the switcher
+    API.get('/api/students?limit=20')
+      .then((d: any) => {
+        const map: Record<string, string> = {};
+        (d.items ?? []).forEach((st: any) => { map[st._id] = `${st.firstName} ${st.lastName ?? ''}`.trim(); });
+        setChildNames(map);
+      })
+      .catch(() => {});
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +57,7 @@ export default function AttendanceHistory() {
             return (
               <TouchableOpacity key={id} onPress={() => setChild(id)}
                 style={[styles.childChip, on && { backgroundColor: rt.accent }]}>
-                <Text style={[styles.childText, on && { color: '#fff' }]}>Child {i + 1}</Text>
+                <Text style={[styles.childText, on && { color: '#fff' }]}>{childNames[id] ?? `Child ${i + 1}`}</Text>
               </TouchableOpacity>
             );
           })}
