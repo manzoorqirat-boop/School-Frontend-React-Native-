@@ -51,7 +51,7 @@ export default function ReportCards() {
   return (
     <Screen title={t('nav.reportCards', 'Report Cards')} subtitle={report?.student ? `${report.student.firstName} ${report.student.lastName ?? ''}`.trim() : 'Exam results'}
       colors={rt.gradient} onBack={() => router.back()}
-      right={report ? <TouchableOpacity onPress={doExport} style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="share-outline" size={22} color="#fff" /></TouchableOpacity> : undefined}>
+      right={report ? <TouchableOpacity onPress={doExport} style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="share-outline" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
 
       {childIds.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: spacing.md }}>
