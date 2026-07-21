@@ -50,7 +50,7 @@ export default function Superadmin() {
       <GradientHeader colors={rt.gradient} subtitle={rt.label} title="Schools"
         right={<View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity onPress={() => setFormOpen(true)} style={styles.avatar}>
-            <Ionicons name="add" size={22} color="#fff" />
+            <Ionicons name="add" size={22} color={colors.ink} />
           </TouchableOpacity>
           <TouchableOpacity onPress={signOut} style={styles.avatar}>
             <Text style={styles.avatarText}>{(user?.name ?? 'U').slice(0,2).toUpperCase()}</Text>
@@ -93,9 +93,8 @@ export default function Superadmin() {
   );
 }
 const styles = StyleSheet.create({
-  avatar: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  avatar: { width: 44, height: 44, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   statRow: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xl, marginTop: -spacing.lg },
   section: { ...font.h3, color: colors.ink, paddingHorizontal: spacing.xl, marginTop: spacing.xl, marginBottom: spacing.md },
   schoolName: { ...font.title, color: colors.ink },
