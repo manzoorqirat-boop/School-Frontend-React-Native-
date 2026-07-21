@@ -32,6 +32,13 @@ export default function Superadmin() {
       Alert.alert('Missing', 'School name, code, admin username and password are required.');
       return;
     }
+    if (!/^[a-z0-9-]+$/.test(String(form.slug).toLowerCase())) {
+      Alert.alert('Invalid code', 'School code can only contain lowercase letters, numbers and hyphens (it becomes the login code).');
+      return;
+    }
+    const pw = form.adminPassword;
+    const pwBad = pw.length < 8 || !/[a-z]/.test(pw) || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw) || /^[a-zA-Z0-9]*$/.test(pw);
+    if (pwBad) { Alert.alert('Weak password', 'Admin password needs 8+ chars with upper, lower, number & special character.'); return; }
     setSaving(true);
     try {
       const res = await API.post('/api/schools', form);
@@ -41,6 +48,16 @@ export default function Superadmin() {
       Alert.alert('School created', `Admin login: ${res.admin?.username}`);
     } catch (e: any) { Alert.alert('Create failed', e.message); }
     finally { setSaving(false); }
+  }
+
+  function confirmDeactivate(sch: any) {
+    Alert.alert('Deactivate school', `Deactivate "${sch.name}"? Its users will no longer be able to log in.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Deactivate', style: 'destructive', onPress: async () => {
+        try { await API.del(`/api/schools/${sch._id}`); setSchools(prev => prev.map(x => x._id === sch._id ? { ...x, isActive: false } : x)); }
+        catch (e: any) { Alert.alert('Failed', e.message); }
+      }},
+    ]);
   }
 
   return (
@@ -63,7 +80,8 @@ export default function Superadmin() {
       <Text style={styles.section}>All schools</Text>
       <View style={{ paddingHorizontal: spacing.xl, gap: spacing.md }}>
         {schools.map(s => (
-          <Card key={s._id}>
+          <TouchableOpacity key={s._id} onLongPress={() => confirmDeactivate(s)} activeOpacity={0.85}>
+          <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.schoolName}>{s.name}</Text>
@@ -72,6 +90,7 @@ export default function Superadmin() {
               <Chip label={s.isActive ? 'Active' : 'Inactive'} tint={s.isActive ? colors.emerald : colors.danger} />
             </View>
           </Card>
+          </TouchableOpacity>
         ))}
         {schools.length === 0 && <Text style={styles.empty}>No schools yet. Pull to refresh.</Text>}
       </View>
