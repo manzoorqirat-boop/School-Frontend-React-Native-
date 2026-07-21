@@ -247,6 +247,10 @@ export default function Students() {
   }
 
   const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
+  const setSibling = (i: number, k: string, v: any) =>
+    setForm((p: any) => ({ ...p, siblings: (p.siblings ?? []).map((x: any, j: number) => j === i ? { ...x, [k]: v } : x) }));
+  const setExam = (i: number, k: string, v: any) =>
+    setForm((p: any) => ({ ...p, passedExams: (p.passedExams ?? []).map((x: any, j: number) => j === i ? { ...x, [k]: v } : x) }));
 
   // Pincode → city/state autofill via the backend lookup proxy. Debounced so a
   // 6-digit entry fires exactly one request. Never blocks manual entry: on
@@ -440,6 +444,64 @@ export default function Students() {
           <Field label="TC Date" value={form.tcDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => set('tcDate', v)} />
         </Collapsible>
 
+        <Collapsible title={`Siblings${(form.siblings?.length ?? 0) > 0 ? ` (${form.siblings.length})` : ''}`}>
+          {(form.siblings ?? []).map((sib: any, i: number) => (
+            <View key={i} style={styles.childCard}>
+              <View style={styles.childHead}>
+                <Text style={styles.childIdx}>Sibling {i + 1}</Text>
+                <TouchableOpacity onPress={() => set('siblings', (form.siblings ?? []).filter((_: any, j: number) => j !== i))}>
+                  <Ionicons name="close-circle" size={20} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+              <Field label="Name" value={sib.name} onChangeText={(v: string) => setSibling(i, 'name', v)} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}><Field label="Class" value={sib.class} onChangeText={(v: string) => setSibling(i, 'class', v)} /></View>
+                <View style={{ flex: 1 }}>
+                  <ChipPicker label="Relation" options={['brother', 'sister']} value={sib.relation ?? ''} onChange={(v) => setSibling(i, 'relation', v)} />
+                </View>
+              </View>
+              <TouchableOpacity style={styles.checkRow} onPress={() => setSibling(i, 'sameSchool', !(sib.sameSchool !== false))}>
+                <Ionicons name={sib.sameSchool !== false ? 'checkbox' : 'square-outline'} size={20} color={sib.sameSchool !== false ? colors.primary : colors.muted} />
+                <Text style={styles.checkLabel}>Studies in this school</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addChild}
+            onPress={() => set('siblings', [...(form.siblings ?? []), { name: '', class: '', relation: '', sameSchool: true }])}>
+            <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+            <Text style={styles.addChildText}>Add sibling</Text>
+          </TouchableOpacity>
+        </Collapsible>
+
+        <Collapsible title={`Passed Exams${(form.passedExams?.length ?? 0) > 0 ? ` (${form.passedExams.length})` : ''}`}>
+          {(form.passedExams ?? []).map((ex: any, i: number) => (
+            <View key={i} style={styles.childCard}>
+              <View style={styles.childHead}>
+                <Text style={styles.childIdx}>Exam {i + 1}</Text>
+                <TouchableOpacity onPress={() => set('passedExams', (form.passedExams ?? []).filter((_: any, j: number) => j !== i))}>
+                  <Ionicons name="close-circle" size={20} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+              <Field label="Exam name" value={ex.examName} placeholder="e.g. Class 10 Board" onChangeText={(v: string) => setExam(i, 'examName', v)} />
+              <Field label="Institution / Board" value={ex.institution} onChangeText={(v: string) => setExam(i, 'institution', v)} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}><Field label="Year" value={ex.year} placeholder="2019-20" onChangeText={(v: string) => setExam(i, 'year', v)} /></View>
+                <View style={{ flex: 1 }}><Field label="Board" value={ex.board} placeholder="CBSE" onChangeText={(v: string) => setExam(i, 'board', v)} /></View>
+              </View>
+              <Field label="Roll No" value={ex.rollNo} onChangeText={(v: string) => setExam(i, 'rollNo', v)} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}><Field label="Obtained" value={ex.obtainedMarks != null ? String(ex.obtainedMarks) : ''} keyboardType="numeric" onChangeText={(v: string) => setExam(i, 'obtainedMarks', v === '' ? null : parseFloat(v))} /></View>
+                <View style={{ flex: 1 }}><Field label="Max marks" value={ex.maxMarks != null ? String(ex.maxMarks) : ''} keyboardType="numeric" onChangeText={(v: string) => setExam(i, 'maxMarks', v === '' ? null : parseFloat(v))} /></View>
+              </View>
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addChild}
+            onPress={() => set('passedExams', [...(form.passedExams ?? []), { examName: '', institution: '', year: '', board: '', rollNo: '', obtainedMarks: null, maxMarks: null }])}>
+            <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+            <Text style={styles.addChildText}>Add passed exam</Text>
+          </TouchableOpacity>
+        </Collapsible>
+
         <Collapsible title="Other">
           <ChipPicker label="Status" options={['active', 'inactive', 'graduated', 'transferred']} value={form.status ?? 'active'} onChange={(v) => set('status', v)} />
           <Field label="Notes" value={form.notes} onChangeText={(v: string) => set('notes', v)} />
@@ -472,6 +534,13 @@ const styles = StyleSheet.create({
   shareRow: { flexDirection: 'row', gap: spacing.sm },
   shareBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, borderRadius: radius.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
   shareBtnText: { ...font.label, color: colors.ink, fontWeight: '600' },
+  childCard: { backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.sm, gap: 4 },
+  childHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  childIdx: { ...font.label, color: colors.slate, fontWeight: '700' },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  checkLabel: { ...font.body, color: colors.ink },
+  addChild: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed' },
+  addChildText: { ...font.label, color: colors.primary, fontWeight: '600' },
   addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line, gap: 12 },
   detailK: { ...font.label, color: colors.muted },
