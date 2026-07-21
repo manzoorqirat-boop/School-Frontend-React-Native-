@@ -112,9 +112,22 @@ export default function Students() {
   }
   function onHi(hiKey: string, v: string) { manualHi.current[hiKey] = true; setForm((p: any) => ({ ...p, [hiKey]: v })); }
 
+  function badDate(v?: string) { return v && !/^\d{4}-\d{2}-\d{2}$/.test(v); }
+
   async function save() {
     if (!form.firstName || !form.admissionNo || !form.class || !form.section) {
       Alert.alert('Missing', 'First name, admission number, class and section are required.');
+      return;
+    }
+    for (const [k, label] of [['dob','Date of Birth'],['admissionDate','Admission Date'],['tcDate','TC Date']] as const) {
+      if (badDate(form[k])) { Alert.alert('Invalid date', `${label} must be in YYYY-MM-DD format.`); return; }
+    }
+    if (form.pincode && !/^[1-9]\d{5}$/.test(form.pincode)) {
+      Alert.alert('Invalid pincode', 'Indian pincode must be 6 digits starting 1-9.');
+      return;
+    }
+    if (form.aadharNo && !/^\d{12}$/.test(String(form.aadharNo).replace(/\s/g,''))) {
+      Alert.alert('Invalid Aadhar', 'Aadhar number must be 12 digits.');
       return;
     }
     setSaving(true);
@@ -154,8 +167,8 @@ export default function Students() {
       colors={rt.gradient} onBack={() => router.back()} scroll={false}
       right={
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity onPress={doExport} style={styles.addBtn}><Ionicons name="share-outline" size={22} color="#fff" /></TouchableOpacity>
-          {can(user, 'student:create') && <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={24} color="#fff" /></TouchableOpacity>}
+          <TouchableOpacity onPress={doExport} style={styles.addBtn}><Ionicons name="share-outline" size={22} color={colors.ink} /></TouchableOpacity>
+          {can(user, 'student:create') && <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity>}
         </View>
       }
     >
@@ -291,7 +304,7 @@ function Detail({ k, v }: { k: string; v?: any }) {
 }
 
 const styles = StyleSheet.create({
-  addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.line, gap: 12 },
   detailK: { ...font.label, color: colors.muted },
   detailV: { ...font.body, color: colors.ink, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
