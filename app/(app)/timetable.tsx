@@ -13,9 +13,15 @@ import { GradientButton, Card } from '@/components/ui';
 const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
 const SECTIONS = ['A','B','C','D','E'];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+// Backend contract: 0=Sun..6=Sat, so Mon=1..Sat=6.
 const DAY_NUM: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-type Entry = { dayOfWeek: number; slotNumber: number; subject: string; teacherName?: string; room?: string; startTime?: string; endTime?: string };
+type Entry = {
+  dayOfWeek: number; slotNumber: number;
+  subjectName?: string;                       // entity field is subjectName (NOT subject)
+  teacherId: string; teacherName?: string;    // teacherId is a hard FK — required
+  room?: string; startTime?: string; endTime?: string; notes?: string;
+};
 
 export default function Timetable() {
   const router = useRouter();
@@ -27,42 +33,76 @@ export default function Timetable() {
   const [cls, setCls] = useState('1');
   const [sec, setSec] = useState('A');
   const [day, setDay] = useState('Mon');
-  const [ttId, setTtId] = useState<string | null>(null);
+  const [tt, setTt] = useState<any>(null);            // the timetable row (or null)
   const [entries, setEntries] = useState<Entry[] | null>(null);
+  const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [entryForm, setEntryForm] = useState<any>({});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<any>({});
 
   const load = useCallback(async () => {
-    setLoading(true); setEntries(null);
+    setLoading(true); setEntries(null); setTt(null);
     try {
       const data = await API.get(`/api/timetables?class=${cls}&section=${sec}`);
-      const tt = (data.items ?? [])[0];
-      setTtId(tt?._id ?? null);
-      setEntries(tt?.entries ?? []);
+      const row = (data.items ?? [])[0];
+      setTt(row ?? null);
+      setEntries(row?.entries ?? []);
     } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setLoading(false); }
   }, [cls, sec]);
+
+  async function loadTeachers() {
+    if (teachers.length) return;
+    try { const data = await API.get('/api/users?role=teacher&limit=100'); setTeachers(data.items ?? []); } catch {}
+  }
 
   const dayEntries = (entries ?? [])
     .filter(e => e.dayOfWeek === DAY_NUM[day])
     .sort((a, b) => (a.slotNumber ?? 0) - (b.slotNumber ?? 0));
 
+  // ── Create the timetable itself (when none exists) ──────────────────────
+  function openCreateTimetable() {
+    setCreateForm({ academicYear: '', fromDate: new Date().toISOString().slice(0, 10) });
+    setCreateOpen(true);
+  }
+  async function createTimetable() {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(createForm.fromDate ?? '')) { Alert.alert('Invalid', 'From date must be YYYY-MM-DD.'); return; }
+    setSaving(true);
+    try {
+      const created = await API.post('/api/timetables', {
+        class: cls, section: sec,
+        academicYear: createForm.academicYear || undefined,
+        fromDate: createForm.fromDate, term: createForm.term || undefined,
+      });
+      setTt(created); setEntries(created.entries ?? []);
+      setCreateOpen(false);
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+    finally { setSaving(false); }
+  }
+
+  // ── Entries ─────────────────────────────────────────────────────────────
   function openAdd() {
+    loadTeachers();
     const nextSlot = (dayEntries.at(-1)?.slotNumber ?? 0) + 1;
-    setEntryForm({ slotNumber: String(nextSlot), subject: '', teacherName: '', room: '', startTime: '', endTime: '' });
+    setEntryForm({ slotNumber: String(nextSlot), subjectName: '', teacherId: '', teacherName: '', room: '', startTime: '', endTime: '' });
     setFormOpen(true);
   }
 
   function addEntry() {
-    if (!entryForm.subject?.trim()) { Alert.alert('Missing', 'Subject is required.'); return; }
+    if (!entryForm.subjectName?.trim()) { Alert.alert('Missing', 'Subject is required.'); return; }
+    if (!entryForm.teacherId) { Alert.alert('Missing', 'Select a teacher — the backend requires one for every period.'); return; }
+    const t2 = (v?: string) => v && !/^\d{2}:\d{2}$/.test(v) ? true : false;
+    if (t2(entryForm.startTime) || t2(entryForm.endTime)) { Alert.alert('Invalid time', 'Times must be HH:MM (e.g. 09:00).'); return; }
     const e: Entry = {
       dayOfWeek: DAY_NUM[day], slotNumber: parseInt(entryForm.slotNumber) || (dayEntries.length + 1),
-      subject: entryForm.subject.trim(), teacherName: entryForm.teacherName?.trim() || undefined,
-      room: entryForm.room?.trim() || undefined, startTime: entryForm.startTime?.trim() || undefined,
-      endTime: entryForm.endTime?.trim() || undefined,
+      subjectName: entryForm.subjectName.trim(),
+      teacherId: entryForm.teacherId, teacherName: entryForm.teacherName,
+      room: entryForm.room?.trim() || undefined,
+      startTime: entryForm.startTime?.trim() || undefined, endTime: entryForm.endTime?.trim() || undefined,
     };
     setEntries([...(entries ?? []), e]);
     setFormOpen(false);
@@ -73,28 +113,60 @@ export default function Timetable() {
   }
 
   async function saveAll() {
-    if (!ttId) { Alert.alert('No timetable', 'No timetable exists for this class/section yet. Create one from the web admin first.'); return; }
+    if (!tt) return;
     setSaving(true);
     try {
-      await API.post(`/api/timetables/${ttId}/entries`, { entries });
+      const updated = await API.post(`/api/timetables/${tt._id}/entries`, { entries });
+      setTt(updated); setEntries(updated.entries ?? entries);
       Alert.alert('Saved', 'Timetable updated.');
     } catch (e: any) { Alert.alert('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
+  async function publish() {
+    try {
+      const updated = await API.post(`/api/timetables/${tt._id}/publish`);
+      setTt(updated);
+      Alert.alert('Published', 'This timetable is now active for students & parents.');
+    } catch (e: any) { Alert.alert('Failed', e.message); }
+  }
+
+  const selTeacher = teachers.find(x => x._id === entryForm.teacherId);
+
   return (
     <Screen title={t('nav.timetable', 'Timetable')} subtitle={editable ? 'View & edit' : 'Class schedule'}
       colors={rt.gradient} onBack={() => router.back()} scroll={false}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm, paddingBottom: 110 }}>
         <ChipPicker label="Class" options={CLASSES} value={cls} onChange={setCls} />
         <ChipPicker label="Section" options={SECTIONS} value={sec} onChange={setSec} />
         <GradientButton label="Load" onPress={load} colors={rt.gradient} />
 
         {loading && <Loading />}
 
-        {entries !== null && (
+        {/* No timetable yet → offer inline creation instead of pointing at the web */}
+        {!loading && entries !== null && !tt && (
+          editable ? (
+            <TouchableOpacity onPress={openCreateTimetable} style={[styles.addRow, { borderColor: rt.accent }]}>
+              <Ionicons name="add-circle" size={22} color={rt.accent} />
+              <Text style={[styles.addText, { color: rt.accent }]}>No timetable for {cls}-{sec} — create one</Text>
+            </TouchableOpacity>
+          ) : <EmptyState icon="calendar" text={`No timetable published for ${cls}-${sec} yet.`} />
+        )}
+
+        {tt && (
           <>
-            <View style={{ height: spacing.sm }} />
+            <View style={styles.metaRow}>
+              <Text style={styles.metaText}>{tt.academicYear || 'Current year'} · </Text>
+              <Text style={[styles.metaBadge, { color: tt.status === 'active' ? colors.success : colors.warning }]}>
+                {tt.status === 'active' ? 'Published' : 'Draft'}
+              </Text>
+              {editable && tt.status !== 'active' && (
+                <TouchableOpacity onPress={publish} style={styles.pubBtn}>
+                  <Text style={styles.pubText}>Publish</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             <ChipPicker label="Day" options={DAYS} value={day} onChange={setDay} />
 
             {editable && (
@@ -113,13 +185,13 @@ export default function Timetable() {
                       <Text style={[styles.slotNum, { color: rt.accent }]}>{e.slotNumber ?? i + 1}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.subject}>{e.subject}</Text>
+                      <Text style={styles.subject}>{e.subjectName ?? (e as any).subject ?? 'Period'}</Text>
                       <Text style={styles.teacher}>{e.teacherName ?? 'Unassigned'}{e.room ? ` \u00b7 Room ${e.room}` : ''}</Text>
                     </View>
                     {(e.startTime || e.endTime) ? <Text style={styles.time}>{e.startTime}{e.endTime ? `\u2013${e.endTime}` : ''}</Text> : null}
                     {editable && (
                       <TouchableOpacity onPress={() => removeEntry(e)} style={{ padding: 4 }}>
-                        <Ionicons name="trash" size={18} color={colors.danger} />
+                        <Ionicons name="trash-outline" size={18} color={colors.danger} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -130,22 +202,48 @@ export default function Timetable() {
         )}
       </ScrollView>
 
-      {editable && entries !== null && (
+      {editable && tt && (
         <View style={styles.saveBar}>
           <GradientButton label="Save Timetable" onPress={saveAll} loading={saving} colors={rt.gradient} />
         </View>
       )}
 
+      {/* Add period */}
       <FormModal visible={formOpen} title={`Add period \u00b7 ${day}`} onClose={() => setFormOpen(false)}
         onSubmit={addEntry} submitLabel="Add">
         <Field label="Slot / Period No" value={entryForm.slotNumber} keyboardType="numeric" onChangeText={(v: string) => setEntryForm({ ...entryForm, slotNumber: v })} />
-        <Field label="Subject *" value={entryForm.subject} onChangeText={(v: string) => setEntryForm({ ...entryForm, subject: v })} />
-        <Field label="Teacher" value={entryForm.teacherName} onChangeText={(v: string) => setEntryForm({ ...entryForm, teacherName: v })} />
+        <Field label="Subject *" value={entryForm.subjectName} onChangeText={(v: string) => setEntryForm({ ...entryForm, subjectName: v })} />
+
+        <Text style={styles.pickLabel}>Teacher * ({selTeacher ? selTeacher.name : 'tap to select'})</Text>
+        {teachers.length === 0 && <Text style={styles.hint}>Loading teachers…</Text>}
+        <View style={{ maxHeight: 160 }}>
+          <ScrollView>
+            {teachers.map(tc => {
+              const on = entryForm.teacherId === tc._id;
+              return (
+                <TouchableOpacity key={tc._id} style={styles.teachRow}
+                  onPress={() => setEntryForm({ ...entryForm, teacherId: tc._id, teacherName: tc.name })}>
+                  <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={18} color={on ? colors.primary : colors.muted} />
+                  <Text style={styles.teachName}>{tc.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
         <Field label="Room" value={entryForm.room} onChangeText={(v: string) => setEntryForm({ ...entryForm, room: v })} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}><Field label="Start" value={entryForm.startTime} placeholder="09:00" onChangeText={(v: string) => setEntryForm({ ...entryForm, startTime: v })} /></View>
           <View style={{ flex: 1 }}><Field label="End" value={entryForm.endTime} placeholder="09:45" onChangeText={(v: string) => setEntryForm({ ...entryForm, endTime: v })} /></View>
         </View>
+      </FormModal>
+
+      {/* Create timetable */}
+      <FormModal visible={createOpen} title={`New timetable \u00b7 ${cls}-${sec}`} onClose={() => setCreateOpen(false)}
+        onSubmit={createTimetable} submitting={saving} submitLabel="Create">
+        <Field label="Academic year" value={createForm.academicYear} placeholder="2025-2026 (blank = school default)" onChangeText={(v: string) => setCreateForm({ ...createForm, academicYear: v })} />
+        <Field label="From date *" value={createForm.fromDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => setCreateForm({ ...createForm, fromDate: v })} />
+        <Field label="Term" value={createForm.term} placeholder="e.g. Term 1 (optional)" onChangeText={(v: string) => setCreateForm({ ...createForm, term: v })} />
       </FormModal>
     </Screen>
   );
@@ -160,5 +258,14 @@ const styles = StyleSheet.create({
   addRow: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 12,
     borderRadius: radius.md, borderWidth: 1.5, borderStyle: 'dashed', marginBottom: spacing.sm },
   addText: { ...font.title },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { ...font.label, color: colors.slate },
+  metaBadge: { ...font.label, fontWeight: '700' },
+  pubBtn: { marginLeft: 'auto', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.primary },
+  pubText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  pickLabel: { ...font.label, color: colors.slate },
+  teachRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
+  teachName: { ...font.body, color: colors.ink },
+  hint: { ...font.label, color: colors.muted, fontStyle: 'italic' },
   saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, backgroundColor: colors.bg },
 });
