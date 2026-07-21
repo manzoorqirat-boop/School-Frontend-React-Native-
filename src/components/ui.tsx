@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.xxl + 8, paddingBottom: spacing.xl },
   headerRounded: { borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
-  headerTitle: { ...font.h1, color: '#fff' },
-  headerSubtitle: { ...font.caption, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', marginBottom: 2 },
+  headerTitle: { ...font.h1, color: colors.ink },
+  headerSubtitle: { ...font.caption, color: colors.muted, textTransform: 'uppercase', marginBottom: 2 },
 
   stat: { backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.lg, gap: 6 },
   statIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
