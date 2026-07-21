@@ -79,7 +79,7 @@ export default function FeeStructures() {
 
   return (
     <Screen title="Fee Structures" subtitle={`${structures.length} defined`} colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={can(user, 'fee:manage') ? <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={24} color="#fff" /></TouchableOpacity> : undefined}>
+      right={can(user, 'fee:manage') ? <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
       <FlatList
         data={structures}
         keyExtractor={s => s._id}
@@ -156,7 +156,7 @@ export default function FeeStructures() {
 }
 
 const styles = StyleSheet.create({
-  addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  addBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
   sectionTitle: { ...font.title, color: colors.ink },
   builderCard: { backgroundColor: colors.bg, borderRadius: radius.md, padding: spacing.sm, gap: 8 },
