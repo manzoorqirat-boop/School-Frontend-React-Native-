@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Modal, KeyboardAvoidingView, Platform, ViewStyle,
+  ActivityIndicator, Modal, KeyboardAvoidingView, Platform, ViewStyle, Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,9 +9,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radius, spacing, font, shadow } from '@/theme';
 import { GradientButton } from './ui';
 
-// ── Screen scaffold: gradient top bar + back + scroll body ──────────────────
+// ── Screen scaffold: light refined top bar + back + scroll body ─────────────
+// `colors` prop kept for back-compat (ignored now) so existing screens compile.
 export function Screen({
-  title, subtitle, colors: g = [colors.primary, colors.primaryDark], onBack, right, children, scroll = true,
+  title, subtitle, onBack, right, children, scroll = true,
 }: {
   title: string; subtitle?: string; colors?: [string, string];
   onBack?: () => void; right?: React.ReactNode; children: React.ReactNode; scroll?: boolean;
@@ -19,16 +20,15 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const Body = scroll
     ? <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + spacing.xxl }}
-        keyboardShouldPersistTaps="handled">{children}</ScrollView>
+        keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
     : <View style={{ flex: 1 }}>{children}</View>;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <LinearGradient colors={g} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
         <View style={styles.barRow}>
           {onBack && (
-            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-              <Ionicons name="chevron-back" size={24} color="#fff" />
+            <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={6}>
+              <Ionicons name="chevron-back" size={22} color={colors.ink} />
             </TouchableOpacity>
           )}
           <View style={{ flex: 1 }}>
@@ -37,7 +37,7 @@ export function Screen({
           </View>
           {right}
         </View>
-      </LinearGradient>
+      </View>
       {Body}
     </View>
   );
@@ -165,7 +165,7 @@ export function FormModal({
               <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color={colors.slate} /></TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={{ gap: spacing.md, paddingBottom: spacing.lg }}
-              keyboardShouldPersistTaps="handled" style={{ maxHeight: 460 }}>
+              keyboardShouldPersistTaps="handled" style={{ maxHeight: Dimensions.get('window').height * 0.78 }}>
               {children}
             </ScrollView>
             <GradientButton label={submitLabel} onPress={onSubmit} loading={submitting} />
@@ -177,13 +177,13 @@ export function FormModal({
 }
 
 const styles = StyleSheet.create({
-  bar: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg,
-    borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg },
+  bar: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, backgroundColor: colors.bg,
+    borderBottomWidth: 1, borderBottomColor: colors.line },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  backBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center', justifyContent: 'center' },
-  barTitle: { ...font.h2, color: '#fff' },
-  barSub: { ...font.caption, color: 'rgba(255,255,255,0.8)' },
+  backBtn: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  barTitle: { ...font.h1, color: colors.ink },
+  barSub: { ...font.caption, color: colors.muted, textTransform: 'uppercase' },
 
   search: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.card,
     borderRadius: radius.md, paddingHorizontal: spacing.lg, height: 48, marginBottom: spacing.md },
