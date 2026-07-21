@@ -76,7 +76,7 @@ export default function Privileges() {
   return (
     <Screen title={t('nav.privileges', 'Privileges')} subtitle={editable ? 'Tap to toggle' : 'Read only'}
       colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={editable ? <TouchableOpacity onPress={resetAll} style={styles.resetBtn}><Ionicons name="refresh" size={20} color="#fff" /></TouchableOpacity> : undefined}>
+      right={editable ? <TouchableOpacity onPress={resetAll} style={styles.resetBtn}><Ionicons name="refresh" size={20} color={colors.ink} /></TouchableOpacity> : undefined}>
       <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
         {/* Role reset chips */}
         {editable && (
@@ -125,7 +125,7 @@ export default function Privileges() {
 }
 
 const styles = StyleSheet.create({
-  resetBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  resetBtn: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   roleChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: radius.pill, borderWidth: 1.5 },
   roleChipText: { ...font.caption },
