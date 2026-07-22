@@ -123,6 +123,206 @@ export function Field({
   );
 }
 
+// ── DateField: tappable field → wheel picker modal. Pure JS, no native dep.
+//    Outputs YYYY-MM-DD. Optional min/max years relative to now.
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function daysInMonth(y: number, m: number) { return new Date(y, m, 0).getDate(); }  // m = 1..12
+
+export function DateField({
+  label, value, onChange, placeholder = 'Select date', minYear, maxYear, allowClear = true,
+}: {
+  label?: string; value?: string; onChange: (v: string) => void;
+  placeholder?: string; minYear?: number; maxYear?: number; allowClear?: boolean;
+}) {
+  const now = new Date();
+  const yEnd = maxYear ?? now.getFullYear() + 1;
+  const yStart = minYear ?? now.getFullYear() - 70;
+  const years: number[] = [];
+  for (let y = yEnd; y >= yStart; y--) years.push(y);
+
+  const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? { y: +value.slice(0, 4), m: +value.slice(5, 7), d: +value.slice(8, 10) }
+    : null;
+
+  const [open, setOpen] = React.useState(false);
+  const [y, setY] = React.useState(parsed?.y ?? now.getFullYear());
+  const [m, setM] = React.useState(parsed?.m ?? now.getMonth() + 1);
+  const [d, setD] = React.useState(parsed?.d ?? now.getDate());
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (parsed) { setY(parsed.y); setM(parsed.m); setD(parsed.d); }
+  }, [open]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const maxD = daysInMonth(y, m);
+  const dd = Math.min(d, maxD);
+  const days: number[] = [];
+  for (let i = 1; i <= maxD; i++) days.push(i);
+
+  function confirm() {
+    const mm = String(m).padStart(2, '0');
+    const day = String(dd).padStart(2, '0');
+    onChange(`${y}-${mm}-${day}`);
+    setOpen(false);
+  }
+
+  const display = parsed ? `${parsed.d} ${MONTHS_SHORT[parsed.m - 1]} ${parsed.y}` : '';
+
+  return (
+    <View style={{ gap: 6 }}>
+      {label ? <Text style={styles.fieldLabel}>{label}</Text> : null}
+      <TouchableOpacity style={[styles.fieldInput, shadow.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+        onPress={() => setOpen(true)} activeOpacity={0.7}>
+        <Text style={{ ...font.body, color: display ? colors.ink : colors.muted }}>{display || placeholder}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {display && allowClear ? (
+            <TouchableOpacity onPress={() => onChange('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={colors.muted} /></TouchableOpacity>
+          ) : null}
+          <Ionicons name="calendar-outline" size={18} color={colors.slate} />
+        </View>
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={pk.backdrop} activeOpacity={1} onPress={() => setOpen(false)}>
+          <TouchableOpacity style={pk.sheet} activeOpacity={1}>
+            <Text style={pk.title}>{label ?? 'Select date'}</Text>
+            <View style={pk.wheelRow}>
+              <Wheel data={days} value={dd} onPick={setD} width={64} render={(v) => String(v)} />
+              <Wheel data={Array.from({ length: 12 }, (_, i) => i + 1)} value={m} onPick={setM} width={92} render={(v) => MONTHS_SHORT[v - 1]} />
+              <Wheel data={years} value={y} onPick={setY} width={90} render={(v) => String(v)} />
+            </View>
+            <View style={pk.actions}>
+              <TouchableOpacity onPress={() => setOpen(false)} style={[pk.btn, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[pk.btnText, { color: colors.ink }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={confirm} style={[pk.btn, { backgroundColor: colors.primary }]}>
+                <Text style={[pk.btnText, { color: '#fff' }]}>Set date</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
+// ── TimeField: same pattern → HH:MM (24h). 5-minute step by default.
+export function TimeField({
+  label, value, onChange, placeholder = 'Select time', minuteStep = 5, allowClear = true,
+}: {
+  label?: string; value?: string; onChange: (v: string) => void;
+  placeholder?: string; minuteStep?: number; allowClear?: boolean;
+}) {
+  const parsed = value && /^\d{1,2}:\d{2}$/.test(value)
+    ? { h: +value.split(':')[0], mi: +value.split(':')[1] } : null;
+  const [open, setOpen] = React.useState(false);
+  const [h, setH] = React.useState(parsed?.h ?? 9);
+  const [mi, setMi] = React.useState(parsed?.mi ?? 0);
+
+  React.useEffect(() => { if (open && parsed) { setH(parsed.h); setMi(parsed.mi); } }, [open]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const mins: number[] = [];
+  for (let i = 0; i < 60; i += minuteStep) mins.push(i);
+  const miSnap = mins.includes(mi) ? mi : mins.reduce((a, b) => Math.abs(b - mi) < Math.abs(a - mi) ? b : a, mins[0]);
+
+  function confirm() {
+    onChange(`${String(h).padStart(2, '0')}:${String(miSnap).padStart(2, '0')}`);
+    setOpen(false);
+  }
+
+  return (
+    <View style={{ gap: 6 }}>
+      {label ? <Text style={styles.fieldLabel}>{label}</Text> : null}
+      <TouchableOpacity style={[styles.fieldInput, shadow.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+        onPress={() => setOpen(true)} activeOpacity={0.7}>
+        <Text style={{ ...font.body, color: value ? colors.ink : colors.muted }}>{value || placeholder}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {value && allowClear ? (
+            <TouchableOpacity onPress={() => onChange('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={colors.muted} /></TouchableOpacity>
+          ) : null}
+          <Ionicons name="time-outline" size={18} color={colors.slate} />
+        </View>
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={pk.backdrop} activeOpacity={1} onPress={() => setOpen(false)}>
+          <TouchableOpacity style={pk.sheet} activeOpacity={1}>
+            <Text style={pk.title}>{label ?? 'Select time'}</Text>
+            <View style={pk.wheelRow}>
+              <Wheel data={hours} value={h} onPick={setH} width={80} render={(v) => String(v).padStart(2, '0') + ' h'} />
+              <Wheel data={mins} value={miSnap} onPick={setMi} width={80} render={(v) => String(v).padStart(2, '0') + ' m'} />
+            </View>
+            <View style={pk.actions}>
+              <TouchableOpacity onPress={() => setOpen(false)} style={[pk.btn, { backgroundColor: colors.surfaceAlt }]}>
+                <Text style={[pk.btnText, { color: colors.ink }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={confirm} style={[pk.btn, { backgroundColor: colors.primary }]}>
+                <Text style={[pk.btnText, { color: '#fff' }]}>Set time</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
+// ── AcademicYearPicker: dropdown of YYYY-YYYY strings around the current/school year.
+export function AcademicYearPicker({
+  label = 'Academic Year', value, onChange, currentYear, span = 3,
+}: {
+  label?: string; value?: string; onChange: (v: string) => void; currentYear?: string; span?: number;
+}) {
+  // Anchor on the school's current AY if given, else this calendar year.
+  const baseStart = (() => {
+    if (currentYear && /^\d{4}-\d{4}$/.test(currentYear)) return +currentYear.slice(0, 4);
+    const now = new Date();
+    // Indian academic year usually starts April — before April, "current" is last year.
+    return now.getMonth() < 3 ? now.getFullYear() - 1 : now.getFullYear();
+  })();
+  const options: string[] = [];
+  for (let s = baseStart - span; s <= baseStart + span; s++) options.push(`${s}-${s + 1}`);
+  if (value && !options.includes(value)) options.unshift(value);
+
+  return <ChipPicker label={label} options={options} value={value ?? ''} onChange={onChange} />;
+}
+
+// Shared scroll "wheel" column for the date/time pickers.
+function Wheel({ data, value, onPick, width, render }: {
+  data: number[]; value: number; onPick: (v: number) => void; width: number; render: (v: number) => string;
+}) {
+  return (
+    <View style={[pk.wheel, { width }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 4 }}>
+        {data.map(v => {
+          const on = v === value;
+          return (
+            <TouchableOpacity key={v} onPress={() => onPick(v)} style={[pk.wheelItem, on && pk.wheelItemOn]}>
+              <Text style={[pk.wheelText, on && pk.wheelTextOn]}>{render(v)}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+const pk = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  sheet: { width: '100%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
+  title: { ...font.title, color: colors.ink, textAlign: 'center' },
+  wheelRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, height: 200 },
+  wheel: { backgroundColor: colors.surfaceAlt, borderRadius: radius.md, overflow: 'hidden' },
+  wheelItem: { paddingVertical: 10, alignItems: 'center' },
+  wheelItemOn: { backgroundColor: colors.primary + '18' },
+  wheelText: { ...font.body, color: colors.slate },
+  wheelTextOn: { color: colors.primary, fontWeight: '800' },
+  actions: { flexDirection: 'row', gap: spacing.sm },
+  btn: { flex: 1, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  btnText: { ...font.title },
+});
+
 // ── Picker (simple horizontal chips) ────────────────────────────────────────
 export function ChipPicker({ label, options, value, onChange }: {
   label?: string; options: string[]; value: string; onChange: (v: string) => void;
