@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, ChipPicker, EmptyState, Loading, Field, FormModal } from '@/components/screen';
+import { Screen, ChipPicker, EmptyState, Loading, Field, FormModal, DateField, TimeField, AcademicYearPicker } from '@/components/screen';
 import { GradientButton, Card } from '@/components/ui';
 
 const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
@@ -25,7 +25,7 @@ type Entry = {
 
 export default function Timetable() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, school } = useAuth();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
   const editable = can(user, 'timetable:manage');
@@ -233,16 +233,16 @@ export default function Timetable() {
 
         <Field label="Room" value={entryForm.room} onChangeText={(v: string) => setEntryForm({ ...entryForm, room: v })} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1 }}><Field label="Start" value={entryForm.startTime} placeholder="09:00" onChangeText={(v: string) => setEntryForm({ ...entryForm, startTime: v })} /></View>
-          <View style={{ flex: 1 }}><Field label="End" value={entryForm.endTime} placeholder="09:45" onChangeText={(v: string) => setEntryForm({ ...entryForm, endTime: v })} /></View>
+          <View style={{ flex: 1 }}><TimeField label="Start" value={entryForm.startTime} onChange={(v) => setEntryForm({ ...entryForm, startTime: v })} /></View>
+          <View style={{ flex: 1 }}><TimeField label="End" value={entryForm.endTime} onChange={(v) => setEntryForm({ ...entryForm, endTime: v })} /></View>
         </View>
       </FormModal>
 
       {/* Create timetable */}
       <FormModal visible={createOpen} title={`New timetable \u00b7 ${cls}-${sec}`} onClose={() => setCreateOpen(false)}
         onSubmit={createTimetable} submitting={saving} submitLabel="Create">
-        <Field label="Academic year" value={createForm.academicYear} placeholder="2025-2026 (blank = school default)" onChangeText={(v: string) => setCreateForm({ ...createForm, academicYear: v })} />
-        <Field label="From date *" value={createForm.fromDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => setCreateForm({ ...createForm, fromDate: v })} />
+        <AcademicYearPicker value={createForm.academicYear} currentYear={school?.academicYear} onChange={(v) => setCreateForm({ ...createForm, academicYear: v })} />
+        <DateField label="From date *" value={createForm.fromDate} onChange={(v) => setCreateForm({ ...createForm, fromDate: v })} />
         <Field label="Term" value={createForm.term} placeholder="e.g. Term 1 (optional)" onChangeText={(v: string) => setCreateForm({ ...createForm, term: v })} />
       </FormModal>
     </Screen>
