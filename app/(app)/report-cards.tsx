@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, EmptyState, Loading } from '@/components/screen';
 import { Card } from '@/components/ui';
 import { exportHTML, htmlTable } from '@/lib/export';
@@ -80,7 +80,7 @@ export default function ReportCards() {
       )}
 
       {loading ? <Loading /> : !report || (report.exams ?? []).length === 0 ? (
-        <EmptyState icon="ribbon" text="No published results yet." />
+        <EmptyState tint={moduleColor('report-cards')} icon="ribbon" text="No published results yet." />
       ) : (
         (report.exams ?? []).map((ex: any, i: number) => (
           <Card key={i} style={{ marginBottom: spacing.md }}>
