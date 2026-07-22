@@ -6,7 +6,7 @@ import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useSchoolConfig } from '@/lib/schoolConfig';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
 
 const ADMINISH = ['school_admin', 'principal', 'superadmin'];
@@ -77,13 +77,13 @@ export default function MyClasses() {
     <Screen title={isAdmin ? 'Class Teachers' : t('nav.myClasses', 'My Classes')}
       subtitle={isAdmin ? 'Assignments gate attendance marking' : `${items.length} assignment(s)`}
       colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={isAdmin ? <TouchableOpacity onPress={openCreate} style={styles.hBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
+      right={isAdmin ? <TouchableOpacity onPress={openCreate} style={[styles.hBtn, { backgroundColor: moduleColor('my-classes'), borderColor: moduleColor('my-classes') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity> : undefined}>
       <FlatList
         data={items}
         keyExtractor={a => a._id}
         contentContainerStyle={{ padding: spacing.lg }}
         ListEmptyComponent={
-          <EmptyState icon="easel"
+          <EmptyState tint={moduleColor('my-classes')} icon="easel"
             text={isAdmin
               ? 'No class-teacher assignments. Teachers cannot mark attendance until assigned — use + to assign.'
               : 'No classes assigned to you yet. Ask your admin to assign you — you need an assignment to mark attendance.'} />
