@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useSchoolConfig, localDate } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, EmptyState, Loading, Field, FormModal, DateField, TimeField, AcademicYearPicker } from '@/components/screen';
 import { GradientButton, Card } from '@/components/ui';
 
@@ -149,7 +149,7 @@ export default function Timetable() {
               <Ionicons name="add-circle" size={22} color={rt.accent} />
               <Text style={[styles.addText, { color: rt.accent }]}>No timetable for {cls}-{sec} — create one</Text>
             </TouchableOpacity>
-          ) : <EmptyState icon="calendar" text={`No timetable published for ${cls}-${sec} yet.`} />
+          ) : <EmptyState tint={moduleColor('timetable')} icon="calendar" text={`No timetable published for ${cls}-${sec} yet.`} />
         )}
 
         {tt && (
@@ -176,7 +176,7 @@ export default function Timetable() {
             )}
 
             {dayEntries.length === 0
-              ? <EmptyState icon="calendar" text={`No periods on ${day}.`} />
+              ? <EmptyState tint={moduleColor('timetable')} icon="calendar" text={`No periods on ${day}.`} />
               : dayEntries.map((e, i) => (
                 <Card key={i} style={{ marginBottom: spacing.sm }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
