@@ -4,14 +4,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useSchoolConfig } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, ChipPicker, EmptyState, Loading, FormModal } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
 
-const DEFAULT_CLASSES = ['Nursery', 'LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-const SECTIONS = ['A', 'B', 'C', 'D', 'E'];
 
 type Row = {
   id: string;
@@ -40,9 +39,10 @@ function ayList(school: any): string[] {
 export default function Promote() {
   const router = useRouter();
   const { user, school } = useAuth();
+  const { classes, sections } = useSchoolConfig();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
-  const classOrder: string[] = school?.classes?.length ? school.classes : DEFAULT_CLASSES;
+  const classOrder: string[] = classes;   // configured order drives promotion mapping
   const ays = ayList(school);
 
   const [fromAY, setFromAY] = useState<string>(school?.academicYear || ays[0] || '');
@@ -212,7 +212,7 @@ export default function Promote() {
             {!editRow.graduate && (
               <>
                 <ChipPicker label="To class" options={classOrder} value={editRow.toClass} onChange={(v) => setEditRow({ ...editRow, toClass: v })} />
-                <ChipPicker label="To section" options={SECTIONS} value={editRow.toSection || editRow.fromSection} onChange={(v) => setEditRow({ ...editRow, toSection: v })} />
+                <ChipPicker label="To section" options={sections} value={editRow.toSection || editRow.fromSection} onChange={(v) => setEditRow({ ...editRow, toSection: v })} />
               </>
             )}
             {editRow.graduate && <Text style={styles.hint}>These students will be marked graduated and moved to {toAY}.</Text>}
