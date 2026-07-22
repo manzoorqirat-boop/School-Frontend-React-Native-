@@ -8,7 +8,7 @@ import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { exportCSV } from '@/lib/export';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, SearchBar, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
+import { Screen, SearchBar, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField } from '@/components/screen';
 
 const STATUS_TINT: Record<string, string> = { pending: colors.warning, partial: colors.info, paid: colors.success, overdue: colors.danger, cancelled: colors.muted };
 const newIdemKey = () => `mob-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -287,7 +287,7 @@ export default function Fees() {
               <>
                 <Field label="Cheque No *" value={payForm.chequeNo} onChangeText={(v: string) => setPayForm({ ...payForm, chequeNo: v })} />
                 <Field label="Bank *" value={payForm.chequeBank} onChangeText={(v: string) => setPayForm({ ...payForm, chequeBank: v })} />
-                <Field label="Cheque date" value={payForm.chequeDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => setPayForm({ ...payForm, chequeDate: v })} />
+                <DateField label="Cheque date" value={payForm.chequeDate} onChange={(v) => setPayForm({ ...payForm, chequeDate: v })} />
               </>
             )}
             {['upi', 'card', 'bank_transfer'].includes(payForm.method) && (
