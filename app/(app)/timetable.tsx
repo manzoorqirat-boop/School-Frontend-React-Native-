@@ -241,7 +241,7 @@ export default function Timetable() {
       <FormModal visible={createOpen} title={`New timetable \u00b7 ${cls}-${sec}`} onClose={() => setCreateOpen(false)}
         onSubmit={createTimetable} submitting={saving} submitLabel="Create">
         <AcademicYearPicker value={createForm.academicYear} currentYear={school?.academicYear} onChange={(v) => setCreateForm({ ...createForm, academicYear: v })} />
-        <DateField label="From date *" value={createForm.fromDate} onChange={(v) => setCreateForm({ ...createForm, fromDate: v })} />
+        <DateField label="From date *" value={createForm.fromDate} allowClear={false} onChange={(v) => setCreateForm({ ...createForm, fromDate: v })} />
         <Field label="Term" value={createForm.term} placeholder="e.g. Term 1 (optional)" onChangeText={(v: string) => setCreateForm({ ...createForm, term: v })} />
       </FormModal>
     </Screen>
