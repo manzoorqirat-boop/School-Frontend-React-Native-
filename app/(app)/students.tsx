@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useSchoolConfig, localDate } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { exportCSV } from '@/lib/export';
@@ -11,11 +12,9 @@ import { translitEnToHi } from '@/lib/translit';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal, Collapsible, DateField, AcademicYearPicker } from '@/components/screen';
 
-const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
 
 // Public student-profile links resolve on the web frontend, not the API host.
 const WEB_BASE = 'https://schoolprd.qmsofts.com';
-const SECTIONS = ['A','B','C','D','E'];
 const STATUS_TINT: Record<string, string> = { active: colors.emerald, inactive: colors.muted, graduated: colors.sky, transferred: colors.amber };
 const CATEGORIES = ['', 'GEN', 'OBC', 'SC', 'ST', 'EWS'];
 const RELIGIONS = ['', 'Hindu', 'Muslim', 'Sikh', 'Christian', 'Buddhist', 'Jain', 'Other'];
@@ -38,6 +37,7 @@ function BilingualField({ label, en, hi, onEn, onHi }: {
 export default function Students() {
   const router = useRouter();
   const { user, school } = useAuth();
+  const { classes, sections } = useSchoolConfig();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
   const [all, setAll] = useState<any[]>([]);
@@ -81,7 +81,7 @@ export default function Students() {
     const base: any = {
       class: '1', section: 'A', gender: '', status: 'active',
       academicYear: school?.academicYear ?? '', nationality: 'Indian',
-      admissionDate: new Date().toISOString().slice(0, 10),
+      admissionDate: localDate(),
     };
     setEditingId(null);
     setForm(base);
@@ -272,6 +272,9 @@ export default function Students() {
   // 6-digit entry fires exactly one request. Never blocks manual entry: on
   // miss/offline the fields stay editable and we just show a hint.
   const pinTimer = useRef<any>(null);
+  // Clear a pending lookup if the screen unmounts mid-debounce.
+  useEffect(() => () => { if (pinTimer.current) clearTimeout(pinTimer.current); }, []);
+
   function onPincode(v: string) {
     const pin = v.replace(/\D/g, '').slice(0, 6);
     set('pincode', pin);
@@ -310,7 +313,7 @@ export default function Students() {
     >
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
         <SearchBar value={q} onChangeText={setQ} placeholder="Name, admission no, phone…" />
-        <ChipPicker label="Class" options={['', ...CLASSES]} value={fClass} onChange={setFClass} />
+        <ChipPicker label="Class" options={['', ...classes]} value={fClass} onChange={setFClass} />
         <View style={{ height: spacing.sm }} />
         <ChipPicker label="Status" options={['', 'active', 'inactive', 'graduated', 'transferred']} value={fStatus} onChange={setFStatus} />
       </View>
@@ -401,8 +404,8 @@ export default function Students() {
           <Field label="Admission No *" value={form.admissionNo} placeholder="Auto-generated…" onChangeText={(v: string) => set('admissionNo', v)} />
           <BilingualField label="First name *" en={form.firstName ?? ''} hi={form.firstNameHi ?? ''} onEn={(v) => onEn('firstName','firstNameHi',v)} onHi={(v) => onHi('firstNameHi',v)} />
           <BilingualField label="Last name" en={form.lastName ?? ''} hi={form.lastNameHi ?? ''} onEn={(v) => onEn('lastName','lastNameHi',v)} onHi={(v) => onHi('lastNameHi',v)} />
-          <ChipPicker label="Class *" options={CLASSES} value={form.class ?? '1'} onChange={(v) => { set('class', v); fetchRoll(v, form.section); }} />
-          <ChipPicker label="Section *" options={SECTIONS} value={form.section ?? 'A'} onChange={(v) => { set('section', v); fetchRoll(form.class, v); }} />
+          <ChipPicker label="Class *" options={classes} value={form.class ?? '1'} onChange={(v) => { set('class', v); fetchRoll(v, form.section); }} />
+          <ChipPicker label="Section *" options={sections} value={form.section ?? 'A'} onChange={(v) => { set('section', v); fetchRoll(form.class, v); }} />
           <Field label="Roll No" value={form.rollNo} onChangeText={(v: string) => set('rollNo', v)} />
           <AcademicYearPicker value={form.academicYear} currentYear={school?.academicYear} onChange={(v) => set('academicYear', v)} />
           <DateField label="Date of Birth" value={form.dob} onChange={(v) => set('dob', v)} />
