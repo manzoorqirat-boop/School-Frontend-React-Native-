@@ -72,6 +72,8 @@ export default function SchoolSetup() {
   }
 
   async function save() {
+    if (!form?.name?.trim()) { Alert.alert('Missing', 'School name is required.'); return; }
+    if (!form?.academicYear) { Alert.alert('Missing', 'Select an academic year.'); return; }
     if (!form?.classes?.length) { Alert.alert('Missing', 'Add at least one class — the class pickers across the app depend on this.'); return; }
     if (!form?.sections?.length) { Alert.alert('Missing', 'Add at least one section.'); return; }
     const day = parseInt(form.feeBillingDay); const rem = parseInt(form.feeReminderDay);
@@ -82,10 +84,18 @@ export default function SchoolSetup() {
     try {
       // Full-object PUT: the endpoint overwrites these lists wholesale, so send
       // the complete current state, not a patch.
+      //
+      // FeeBillingDay/FeeReminderDay are non-nullable ints on the server. An
+      // empty string can't bind to int and fails the WHOLE request during model
+      // binding — which silently took classes and sections down with it. Always
+      // send a valid number, falling back to the server's own defaults.
       const updated = await API.put(`/api/schools/${form._id}`, {
         ...form,
-        feeBillingDay: form.feeBillingDay ? day : form.feeBillingDay,
-        feeReminderDay: form.feeReminderDay ? rem : form.feeReminderDay,
+        classes: form.classes ?? [],
+        sections: form.sections ?? [],
+        workingDays: form.workingDays ?? [],
+        feeBillingDay: isNaN(day) ? 1 : day,
+        feeReminderDay: isNaN(rem) ? 10 : rem,
       });
       setForm({ ...updated, classes: [...(updated.classes ?? [])], sections: [...(updated.sections ?? [])], workingDays: [...(updated.workingDays ?? [])] });
       await refreshSchool();
@@ -104,7 +114,7 @@ export default function SchoolSetup() {
       .filter(t => (t.name ?? '').trim())
       .map(t => ({
         name: t.name.trim(),
-        totalDays: parseFloat(t.totalDays) || 0,
+        totalDays: Number.isFinite(parseFloat(t.totalDays)) ? parseFloat(t.totalDays) : 0,
         isPaid: t.isPaid !== false,
         color: t.color || undefined,
         description: t.description || undefined,
@@ -177,6 +187,7 @@ export default function SchoolSetup() {
           <Field label="Reminder day of month (1-28)" value={form.feeReminderDay != null ? String(form.feeReminderDay) : ''} keyboardType="numeric" onChangeText={(v: string) => set('feeReminderDay', v)} />
         </Collapsible>
 
+        {can(user, 'payroll:manage') && (
         <Collapsible title={`Leave Types (${leaveTypes.length})`}>
           <Text style={styles.hint}>Used when staff apply for leave. Unpaid types drive payslip deductions.</Text>
           {leaveTypes.map((t, i) => (
@@ -191,6 +202,7 @@ export default function SchoolSetup() {
             <Text style={styles.editBtnText}>Edit leave types</Text>
           </TouchableOpacity>
         </Collapsible>
+        )}
 
         <Text style={styles.footNote}>
           Subjects and grading scales are managed per class under Exams. Logo, colours and payment keys are configured on the web admin.
