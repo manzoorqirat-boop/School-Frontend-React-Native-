@@ -135,22 +135,16 @@ export default function Students() {
       Alert.alert('Invalid Aadhar', 'Aadhar number must be 12 digits.');
       return;
     }
+    if (!form.admissionDate || !/^\d{4}-\d{2}-\d{2}$/.test(form.admissionDate)) {
+      Alert.alert('Missing', 'Admission date is required.'); return;
+    }
     setSaving(true);
     try {
       // Sanitize child collections: drop fully-empty rows, coerce NaN → null so
       // JSON.stringify never emits a value the network layer can choke on.
       const num = (v: any) => (v === '' || v == null || Number.isNaN(v)) ? null : Number(v);
-
-      // Date columns bind to a nullable DateOnly server-side. A cleared input
-      // leaves '' in state, which fails model binding with a 400 before the
-      // action runs — send undefined (key omitted) instead.
-      const d = (v: any) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
-
       const payload = {
         ...form,
-        dob: d(form.dob),
-        admissionDate: d(form.admissionDate),
-        tcDate: d(form.tcDate),
         siblings: (form.siblings ?? [])
           .filter((s: any) => (s.name ?? '').trim() || (s.class ?? '').trim())
           .map((s: any) => ({ name: s.name ?? '', class: s.class ?? '', relation: s.relation || null, sameSchool: s.sameSchool !== false })),
@@ -418,7 +412,7 @@ export default function Students() {
           <Field label="Roll No" value={form.rollNo} onChangeText={(v: string) => set('rollNo', v)} />
           <AcademicYearPicker value={form.academicYear} currentYear={school?.academicYear} onChange={(v) => set('academicYear', v)} />
           <DateField label="Date of Birth" value={form.dob} onChange={(v) => set('dob', v)} />
-          <DateField label="Admission Date" value={form.admissionDate} onChange={(v) => set('admissionDate', v)} />
+          <DateField label="Admission Date *" value={form.admissionDate} allowClear={false} onChange={(v) => set('admissionDate', v)} />
           <ChipPicker label="Gender" options={['', 'male', 'female', 'other']} value={form.gender ?? ''} onChange={(v) => set('gender', v)} />
           <ChipPicker label="Blood Group" options={BLOOD} value={form.bloodGroup ?? ''} onChange={(v) => set('bloodGroup', v)} />
           <Field label="House" value={form.house} onChangeText={(v: string) => set('house', v)} />
