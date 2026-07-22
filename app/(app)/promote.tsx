@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useSchoolConfig } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, EmptyState, Loading, FormModal } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
 
@@ -141,7 +141,7 @@ export default function Promote() {
 
   if (!can(user, 'student:update')) {
     return <Screen title="Promote" colors={rt.gradient} onBack={() => router.back()}>
-      <EmptyState icon="lock-closed" text="You don't have permission to promote students." />
+      <EmptyState tint={moduleColor('promote')} icon="lock-closed" text="You don't have permission to promote students." />
     </Screen>;
   }
 
@@ -187,7 +187,7 @@ export default function Promote() {
           </>
         )}
 
-        {rows && rows.length === 0 && <EmptyState icon="school" text="No groups to promote." />}
+        {rows && rows.length === 0 && <EmptyState tint={moduleColor('promote')} icon="school" text="No groups to promote." />}
       </ScrollView>
 
       {rows && rows.length > 0 && (
