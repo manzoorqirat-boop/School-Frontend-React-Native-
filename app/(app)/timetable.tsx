@@ -4,15 +4,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useSchoolConfig } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, ChipPicker, EmptyState, Loading, Field, FormModal, DateField, TimeField, AcademicYearPicker } from '@/components/screen';
 import { GradientButton, Card } from '@/components/ui';
 
-const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
-const SECTIONS = ['A','B','C','D','E'];
-const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat'];
 // Backend contract: 0=Sun..6=Sat, so Mon=1..Sat=6.
 const DAY_NUM: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
@@ -26,6 +24,7 @@ type Entry = {
 export default function Timetable() {
   const router = useRouter();
   const { user, school } = useAuth();
+  const { classes, sections, workingDays } = useSchoolConfig();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
   const editable = can(user, 'timetable:manage');
@@ -137,8 +136,8 @@ export default function Timetable() {
     <Screen title={t('nav.timetable', 'Timetable')} subtitle={editable ? 'View & edit' : 'Class schedule'}
       colors={rt.gradient} onBack={() => router.back()} scroll={false}>
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm, paddingBottom: 110 }}>
-        <ChipPicker label="Class" options={CLASSES} value={cls} onChange={setCls} />
-        <ChipPicker label="Section" options={SECTIONS} value={sec} onChange={setSec} />
+        <ChipPicker label="Class" options={classes} value={cls} onChange={setCls} />
+        <ChipPicker label="Section" options={sections} value={sec} onChange={setSec} />
         <GradientButton label="Load" onPress={load} colors={rt.gradient} />
 
         {loading && <Loading />}
@@ -167,7 +166,7 @@ export default function Timetable() {
               )}
             </View>
 
-            <ChipPicker label="Day" options={DAYS} value={day} onChange={setDay} />
+            <ChipPicker label="Day" options={workingDays} value={day} onChange={setDay} />
 
             {editable && (
               <TouchableOpacity onPress={openAdd} style={[styles.addRow, { borderColor: rt.accent }]}>
