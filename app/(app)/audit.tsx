@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { API } from '@/lib/api';
@@ -16,24 +16,33 @@ export default function Audit() {
   const rt = themeForRole(user?.role);
 
   const [logs, setLogs] = useState<any[]>([]);
+  const logsRef = useRef<any[]>([]);
   const [total, setTotal] = useState(0);
   const [actions, setActions] = useState<string[]>([]);
   const [fAction, setFAction] = useState('');
   const [loading, setLoading] = useState(true);
   const [more, setMore] = useState(false);
 
+  const inFlight = useRef(false);
+
   const load = useCallback(async (reset: boolean, action: string) => {
+    if (inFlight.current) return;              // guard: onEndReached double-fires
+    inFlight.current = true;
     reset ? setLoading(true) : setMore(true);
     try {
-      const skip = reset ? 0 : logs.length;
+      const skip = reset ? 0 : logsRef.current.length;
       let url = `/api/audit-logs?limit=${PAGE}&skip=${skip}`;
       if (action) url += `&action=${encodeURIComponent(action)}`;
       const data = await API.get(url);
       setTotal(data.total ?? 0);
-      setLogs(prev => reset ? (data.logs ?? []) : [...prev, ...(data.logs ?? [])]);
+      setLogs(prev => {
+        const next = reset ? (data.logs ?? []) : [...prev, ...(data.logs ?? [])];
+        logsRef.current = next;
+        return next;
+      });
     } catch (e: any) { Alert.alert('Error', e.message); }
-    finally { setLoading(false); setMore(false); }
-  }, [logs.length]);
+    finally { setLoading(false); setMore(false); inFlight.current = false; }
+  }, []);
 
   useEffect(() => {
     load(true, '');
