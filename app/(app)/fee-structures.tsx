@@ -4,13 +4,12 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useSchoolConfig } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField, AcademicYearPicker } from '@/components/screen';
 
-const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
-const SECTIONS = ['', 'A','B','C','D','E'];
 const FREQ = ['annual', 'monthly', 'quarterly', 'one_time'];
 
 type Head = { name: string; amount: string; frequency: string; isOptional: boolean };
@@ -19,6 +18,7 @@ type Inst = { name: string; dueDate: string; percentage: string };
 export default function FeeStructures() {
   const router = useRouter();
   const { user, school } = useAuth();
+  const { classes, sectionsWithBlank } = useSchoolConfig();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
   const [structures, setStructures] = useState<any[]>([]);
@@ -100,8 +100,8 @@ export default function FeeStructures() {
       <FormModal visible={open} title={editId ? 'Edit structure' : 'New structure'} onClose={() => setOpen(false)}
         onSubmit={save} submitting={saving} submitLabel={editId ? 'Update' : 'Create'}>
         <Field label="Name *" value={meta.name} onChangeText={(v: string) => setMeta({ ...meta, name: v })} />
-        <ChipPicker label="Class" options={CLASSES} value={meta.class} onChange={(v) => setMeta({ ...meta, class: v })} />
-        <ChipPicker label="Section (blank = all)" options={SECTIONS} value={meta.section} onChange={(v) => setMeta({ ...meta, section: v })} />
+        <ChipPicker label="Class" options={classes} value={meta.class} onChange={(v) => setMeta({ ...meta, class: v })} />
+        <ChipPicker label="Section (blank = all)" options={sectionsWithBlank} value={meta.section} onChange={(v) => setMeta({ ...meta, section: v })} />
         <AcademicYearPicker value={meta.academicYear} currentYear={school?.academicYear} onChange={(v) => setMeta({ ...meta, academicYear: v })} />
 
         {/* Heads */}
