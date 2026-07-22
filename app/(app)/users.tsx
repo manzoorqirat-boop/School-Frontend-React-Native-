@@ -6,7 +6,7 @@ import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole, roleLabel } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, roleLabel, moduleColor } from '@/theme';
 import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
 
 const ROLES = ['school_admin', 'principal', 'accountant', 'teacher', 'parent', 'student'];
@@ -147,7 +147,7 @@ export default function Users() {
   return (
     <Screen title={t('nav.users', 'Users')} subtitle={`${filtered.length} of ${users.length}`}
       colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={manage ? <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
+      right={manage ? <TouchableOpacity onPress={openCreate} style={[styles.addBtn, { backgroundColor: moduleColor('users'), borderColor: moduleColor('users') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity> : undefined}>
       <View style={{ padding: spacing.lg, paddingBottom: 0 }}>
         <SearchBar value={q} onChangeText={setQ} placeholder="Name, username, email…" />
         <ChipPicker label="Role" options={['', ...ROLES]} value={fRole} onChange={setFRole} />
@@ -156,7 +156,7 @@ export default function Users() {
         data={filtered}
         keyExtractor={u => u._id}
         contentContainerStyle={{ padding: spacing.lg }}
-        ListEmptyComponent={<EmptyState icon="people" text="No users match." />}
+        ListEmptyComponent={<EmptyState tint={moduleColor('users')} icon="people" text="No users match." />}
         renderItem={({ item: u }) => (
           <ListItem
             leading={<Avatar name={u.name} tint={rt.accent} />}
