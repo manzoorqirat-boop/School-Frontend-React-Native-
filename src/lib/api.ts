@@ -85,11 +85,25 @@ export const API = {
     const tok = await this.token();
     if (tok) headers.Authorization = 'Bearer ' + tok;
 
-    const res = await fetch(this.base + path, {
-      method,
-      headers,
-      body: body != null ? JSON.stringify(body) : undefined,
-    });
+    // Abort slow requests (Railway cold-starts, flaky mobile data) with a clear
+    // message instead of a silent hang or a bare "Network request failed".
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    let res: Response;
+    try {
+      res = await fetch(this.base + path, {
+        method,
+        headers,
+        body: body != null ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      clearTimeout(timer);
+      if (err?.name === 'AbortError')
+        throw new ApiError('Request timed out — the server took too long. Check your connection and try again.', 0, null);
+      throw new ApiError('Could not reach the server. Check your internet connection and try again.', 0, null);
+    }
+    clearTimeout(timer);
 
     const ct = res.headers.get('content-type') || '';
     const data = ct.includes('application/json') ? await res.json() : await res.text();
