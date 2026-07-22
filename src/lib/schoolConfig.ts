@@ -31,3 +31,17 @@ export function useSchoolConfig() {
     school,
   };
 }
+
+/**
+ * Format a Date as YYYY-MM-DD in the DEVICE'S LOCAL timezone.
+ *
+ * Do NOT use `toISOString().slice(0,10)` for calendar dates: it converts to
+ * UTC first, so in IST (UTC+5:30) a local midnight becomes the *previous*
+ * day. That silently shifted attendance dates back by one.
+ */
+export function localDate(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
