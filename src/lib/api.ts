@@ -104,8 +104,14 @@ export const API = {
     } catch (err: any) {
       clearTimeout(timer);
       if (err?.name === 'AbortError')
-        throw new ApiError('Request timed out — the server took too long. Check your connection and try again.', 0, null);
-      throw new ApiError('Could not reach the server. Check your internet connection and try again.', 0, null);
+        throw new ApiError('Request timed out after 30s. The server may be waking up — try again.', 0, null);
+      // Surface the real reason: RN hides TLS/DNS/size failures behind a
+      // generic "Network request failed", which is undebuggable in the field.
+      const detail = [err?.message, err?.code].filter(Boolean).join(' · ') || 'unknown';
+      const size = body != null ? `${Math.round(JSON.stringify(body).length / 1024)}KB` : '0KB';
+      throw new ApiError(
+        `Could not reach the server.\n\n${method} ${path}\nPayload: ${size}\nReason: ${detail}`,
+        0, null);
     }
     clearTimeout(timer);
 
