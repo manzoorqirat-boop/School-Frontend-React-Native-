@@ -106,16 +106,11 @@ export default function Exams() {
 
     setSaving(true);
     try {
-      // Empty strings are not valid dates. Omit the key entirely rather than
-      // sending '' — the API binds these to a nullable DateOnly, and '' fails
-      // model binding with a 400 before the action ever runs.
-      const d = (v?: string) => (v && v.trim() ? v.trim() : undefined);
-
       if (editing) {
         // PUT updates meta only — backend does not modify subjects on update.
         const updated = await API.put(`/api/exams/${editing._id}`, {
           name: form.name.trim(), type: form.type, section: form.section || null,
-          fromDate: d(form.fromDate), toDate: d(form.toDate), notes: form.notes,
+          fromDate: form.fromDate, toDate: form.toDate, notes: form.notes,
           weightInFinal: editing.weightInFinal ?? 0, gradingScaleId: editing.gradingScaleId ?? null,
         });
         setExams(prev => prev.map(x => x._id === editing._id ? updated : x));
@@ -127,8 +122,7 @@ export default function Exams() {
         if (!subs.length) { Alert.alert('Missing', 'Select at least one subject.'); setSaving(false); return; }
         const created = await API.post('/api/exams', {
           name: form.name.trim(), type: form.type, class: form.class, section: form.section || null,
-          fromDate: d(form.fromDate), toDate: d(form.toDate), notes: form.notes, subjects: subs,
-          weightInFinal: 0,
+          fromDate: form.fromDate, toDate: form.toDate, notes: form.notes, subjects: subs,
         });
         setExams(prev => [created, ...prev]);
       }
@@ -190,8 +184,8 @@ export default function Exams() {
         {!editing && <ChipPicker label="Class *" options={classes} value={form.class ?? '1'} onChange={(v) => { setForm({ ...form, class: v }); loadSubjects(v); }} />}
         <ChipPicker label="Section (blank = all)" options={sectionsWithBlank} value={form.section ?? ''} onChange={(v) => setForm({ ...form, section: v })} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1 }}><DateField label="From *" value={form.fromDate} onChange={(v) => setForm({ ...form, fromDate: v })} /></View>
-          <View style={{ flex: 1 }}><DateField label="To *" value={form.toDate} onChange={(v) => setForm({ ...form, toDate: v })} /></View>
+          <View style={{ flex: 1 }}><DateField label="From *" value={form.fromDate} allowClear={false} onChange={(v) => setForm({ ...form, fromDate: v })} /></View>
+          <View style={{ flex: 1 }}><DateField label="To *" value={form.toDate} allowClear={false} onChange={(v) => setForm({ ...form, toDate: v })} /></View>
         </View>
 
         {!editing && (
