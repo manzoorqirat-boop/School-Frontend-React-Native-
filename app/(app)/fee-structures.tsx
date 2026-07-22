@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
+import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField, AcademicYearPicker } from '@/components/screen';
 
 const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
 const SECTIONS = ['', 'A','B','C','D','E'];
@@ -18,7 +18,7 @@ type Inst = { name: string; dueDate: string; percentage: string };
 
 export default function FeeStructures() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, school } = useAuth();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
   const [structures, setStructures] = useState<any[]>([]);
@@ -102,7 +102,7 @@ export default function FeeStructures() {
         <Field label="Name *" value={meta.name} onChangeText={(v: string) => setMeta({ ...meta, name: v })} />
         <ChipPicker label="Class" options={CLASSES} value={meta.class} onChange={(v) => setMeta({ ...meta, class: v })} />
         <ChipPicker label="Section (blank = all)" options={SECTIONS} value={meta.section} onChange={(v) => setMeta({ ...meta, section: v })} />
-        <Field label="Academic Year" value={meta.academicYear} placeholder="2025-2026" onChangeText={(v: string) => setMeta({ ...meta, academicYear: v })} />
+        <AcademicYearPicker value={meta.academicYear} currentYear={school?.academicYear} onChange={(v) => setMeta({ ...meta, academicYear: v })} />
 
         {/* Heads */}
         <View style={styles.sectionRow}>
@@ -146,7 +146,7 @@ export default function FeeStructures() {
                 <Ionicons name="trash" size={18} color={colors.danger} />
               </TouchableOpacity>
             </View>
-            <Field placeholder="Due date (YYYY-MM-DD)" value={inst.dueDate} onChangeText={(v: string) => setInsts(insts.map((x, j) => j === i ? { ...x, dueDate: v } : x))} />
+            <DateField placeholder="Due date" value={inst.dueDate} onChange={(v) => setInsts(insts.map((x, j) => j === i ? { ...x, dueDate: v } : x))} />
           </View>
         ))}
         {insts.length === 0 && <Text style={styles.hint}>No installments = single annual payment.</Text>}
