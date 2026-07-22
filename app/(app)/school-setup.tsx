@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, Field, Collapsible, Loading, EmptyState, AcademicYearPicker, FormModal } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
 
@@ -121,8 +121,8 @@ export default function SchoolSetup() {
   }
 
   if (loading) return <Screen title="School Setup" colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
-  if (!form) return <Screen title="School Setup" colors={rt.gradient} onBack={() => router.back()}><EmptyState icon="business" text="Could not load school details." /></Screen>;
-  if (!editable) return <Screen title="School Setup" colors={rt.gradient} onBack={() => router.back()}><EmptyState icon="lock-closed" text="You don't have permission to change school settings." /></Screen>;
+  if (!form) return <Screen title="School Setup" colors={rt.gradient} onBack={() => router.back()}><EmptyState tint={moduleColor('school-setup')} icon="business" text="Could not load school details." /></Screen>;
+  if (!editable) return <Screen title="School Setup" colors={rt.gradient} onBack={() => router.back()}><EmptyState tint={moduleColor('school-setup')} icon="lock-closed" text="You don't have permission to change school settings." /></Screen>;
 
   return (
     <Screen title="School Setup" subtitle="Master data used across the app" colors={rt.gradient} onBack={() => router.back()} scroll={false}>
