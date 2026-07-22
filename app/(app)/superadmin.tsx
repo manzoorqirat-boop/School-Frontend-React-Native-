@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, A
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { API } from '@/lib/api';
-import { themeForRole, colors, spacing, font, radius } from '@/theme';
+import { themeForRole, colors, spacing, font, radius, moduleColor } from '@/theme';
 import { GradientHeader, StatTile, Card, Chip } from '@/components/ui';
 import { Field, ChipPicker, FormModal } from '@/components/screen';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,7 +67,7 @@ export default function Superadmin() {
       <GradientHeader colors={rt.gradient} subtitle={rt.label} title="Schools"
         right={<View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity onPress={() => setFormOpen(true)} style={styles.avatar}>
-            <Ionicons name="add" size={22} color={colors.ink} />
+            <Ionicons name="add" size={22} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity onPress={signOut} style={styles.avatar}>
             <Text style={styles.avatarText}>{(user?.name ?? 'U').slice(0,2).toUpperCase()}</Text>
