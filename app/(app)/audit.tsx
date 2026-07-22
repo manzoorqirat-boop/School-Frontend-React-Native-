@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, EmptyState, Loading } from '@/components/screen';
 
 const PAGE = 50;
@@ -63,7 +63,7 @@ export default function Audit() {
         data={logs}
         keyExtractor={(l, i) => l._id ?? String(i)}
         contentContainerStyle={{ padding: spacing.lg }}
-        ListEmptyComponent={<EmptyState icon="time" text="No audit events match." />}
+        ListEmptyComponent={<EmptyState tint={moduleColor('audit')} icon="time" text="No audit events match." />}
         onEndReachedThreshold={0.4}
         onEndReached={() => { if (!more && logs.length < total) load(false, fAction); }}
         ListFooterComponent={more ? <Text style={styles.more}>Loading more…</Text>
