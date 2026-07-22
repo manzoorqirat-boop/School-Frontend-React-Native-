@@ -69,6 +69,10 @@ export const API = {
     try { return raw ? JSON.parse(raw) : null; } catch { return null; }
   },
 
+  async setSchool(school: any) {
+    if (school) await set(K.school, JSON.stringify(school));
+  },
+
   async setSession(token: string, user: SessionUser, school?: any, refreshToken?: string) {
     await set(K.token, token);
     await set(K.user, JSON.stringify(user));
