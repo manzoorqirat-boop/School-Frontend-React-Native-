@@ -9,7 +9,7 @@ import { useI18n } from '@/i18n';
 import { exportCSV } from '@/lib/export';
 import { translitEnToHi } from '@/lib/translit';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal, Collapsible } from '@/components/screen';
+import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal, Collapsible, DateField, AcademicYearPicker } from '@/components/screen';
 
 const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
 
@@ -137,7 +137,23 @@ export default function Students() {
     }
     setSaving(true);
     try {
-      const saved = editingId ? await API.put(`/api/students/${editingId}`, form) : await API.post('/api/students', form);
+      // Sanitize child collections: drop fully-empty rows, coerce NaN → null so
+      // JSON.stringify never emits a value the network layer can choke on.
+      const num = (v: any) => (v === '' || v == null || Number.isNaN(v)) ? null : Number(v);
+      const payload = {
+        ...form,
+        siblings: (form.siblings ?? [])
+          .filter((s: any) => (s.name ?? '').trim() || (s.class ?? '').trim())
+          .map((s: any) => ({ name: s.name ?? '', class: s.class ?? '', relation: s.relation || null, sameSchool: s.sameSchool !== false })),
+        passedExams: (form.passedExams ?? [])
+          .filter((e: any) => (e.examName ?? '').trim() || (e.institution ?? '').trim())
+          .map((e: any) => ({
+            examName: e.examName ?? '', institution: e.institution ?? '', year: e.year ?? '',
+            rollNo: e.rollNo ?? '', board: e.board ?? '',
+            obtainedMarks: num(e.obtainedMarks), maxMarks: num(e.maxMarks),
+          })),
+      };
+      const saved = editingId ? await API.put(`/api/students/${editingId}`, payload) : await API.post('/api/students', payload);
       setAll(prev => editingId ? prev.map(x => x._id === editingId ? { ...x, ...saved } : x) : [saved, ...prev]);
       setFormOpen(false);
       if (saved._parent?.created) Alert.alert('Parent account created', `Username: ${saved._parent.username}\nPassword: ${saved._parent.password}`);
@@ -388,9 +404,9 @@ export default function Students() {
           <ChipPicker label="Class *" options={CLASSES} value={form.class ?? '1'} onChange={(v) => { set('class', v); fetchRoll(v, form.section); }} />
           <ChipPicker label="Section *" options={SECTIONS} value={form.section ?? 'A'} onChange={(v) => { set('section', v); fetchRoll(form.class, v); }} />
           <Field label="Roll No" value={form.rollNo} onChangeText={(v: string) => set('rollNo', v)} />
-          <Field label="Academic Year" value={form.academicYear} placeholder="2025-2026" onChangeText={(v: string) => set('academicYear', v)} />
-          <Field label="Date of Birth" value={form.dob} placeholder="YYYY-MM-DD" onChangeText={(v: string) => set('dob', v)} />
-          <Field label="Admission Date" value={form.admissionDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => set('admissionDate', v)} />
+          <AcademicYearPicker value={form.academicYear} currentYear={school?.academicYear} onChange={(v) => set('academicYear', v)} />
+          <DateField label="Date of Birth" value={form.dob} onChange={(v) => set('dob', v)} />
+          <DateField label="Admission Date" value={form.admissionDate} onChange={(v) => set('admissionDate', v)} />
           <ChipPicker label="Gender" options={['', 'male', 'female', 'other']} value={form.gender ?? ''} onChange={(v) => set('gender', v)} />
           <ChipPicker label="Blood Group" options={BLOOD} value={form.bloodGroup ?? ''} onChange={(v) => set('bloodGroup', v)} />
           <Field label="House" value={form.house} onChangeText={(v: string) => set('house', v)} />
@@ -441,7 +457,7 @@ export default function Students() {
           <Field label="Previous school" value={form.prevSchool} onChangeText={(v: string) => set('prevSchool', v)} />
           <Field label="Previous class" value={form.prevClass} onChangeText={(v: string) => set('prevClass', v)} />
           <Field label="TC No" value={form.tcNo} onChangeText={(v: string) => set('tcNo', v)} />
-          <Field label="TC Date" value={form.tcDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => set('tcDate', v)} />
+          <DateField label="TC Date" value={form.tcDate} onChange={(v) => set('tcDate', v)} />
         </Collapsible>
 
         <Collapsible title={`Siblings${(form.siblings?.length ?? 0) > 0 ? ` (${form.siblings.length})` : ''}`}>
