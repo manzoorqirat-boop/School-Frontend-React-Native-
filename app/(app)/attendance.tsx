@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { useSchoolConfig } from '@/lib/schoolConfig';
+import { useSchoolConfig, localDate as iso } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
@@ -19,7 +19,6 @@ const STATUSES = [
   { key: 'leave',   label: 'Lv', tint: colors.info },
 ];
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 const today = () => iso(new Date());
 
 export default function Attendance() {
