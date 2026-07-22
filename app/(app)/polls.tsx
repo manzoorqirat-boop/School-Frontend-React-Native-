@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
 
 const STATUS_TINT: Record<string, string> = { draft: colors.muted, active: colors.success, closed: colors.info };
@@ -109,12 +109,12 @@ export default function Polls() {
 
   return (
     <Screen title={t('nav.polls', 'Polls')} subtitle={`${polls.length} polls`} colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={canManage ? <TouchableOpacity onPress={openCreate} style={styles.hBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
+      right={canManage ? <TouchableOpacity onPress={openCreate} style={[styles.hBtn, { backgroundColor: moduleColor('polls'), borderColor: moduleColor('polls') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity> : undefined}>
       <FlatList
         data={polls}
         keyExtractor={p => p._id}
         contentContainerStyle={{ padding: spacing.lg }}
-        ListEmptyComponent={<EmptyState icon="bar-chart" text={canManage ? 'No polls yet. Use + to create one.' : 'No polls right now.'} />}
+        ListEmptyComponent={<EmptyState tint={moduleColor('polls')} icon="bar-chart" text={canManage ? 'No polls yet. Use + to create one.' : 'No polls right now.'} />}
         renderItem={({ item: p }) => (
           <ListItem
             title={p.title}
