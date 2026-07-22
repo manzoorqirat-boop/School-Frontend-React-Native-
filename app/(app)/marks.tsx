@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
 
@@ -106,7 +106,7 @@ export default function Marks() {
           data={exams}
           keyExtractor={e => e._id}
           contentContainerStyle={{ padding: spacing.lg }}
-          ListEmptyComponent={<EmptyState icon="document-text" text="No exams available." />}
+          ListEmptyComponent={<EmptyState tint={moduleColor('marks')} icon="document-text" text="No exams available." />}
           renderItem={({ item: e }) => (
             <ListItem title={e.name} subtitle={`${e.class}${e.section ? '-' + e.section : ''} · ${e.type ?? ''}`}
               onPress={() => pickExam(e)} />
@@ -120,7 +120,7 @@ export default function Marks() {
           data={exam?.subjects ?? []}
           keyExtractor={(s, i) => s.subjectId ?? String(i)}
           contentContainerStyle={{ padding: spacing.lg }}
-          ListEmptyComponent={<EmptyState icon="book" text="No subjects on this exam." />}
+          ListEmptyComponent={<EmptyState tint={moduleColor('marks')} icon="book" text="No subjects on this exam." />}
           renderItem={({ item: s }) => (
             <ListItem title={s.subjectName} subtitle={`Max marks: ${s.maxMarks}`} onPress={() => pickSubject(s)} />
           )}
