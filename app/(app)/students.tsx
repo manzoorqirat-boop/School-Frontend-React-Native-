@@ -140,8 +140,17 @@ export default function Students() {
       // Sanitize child collections: drop fully-empty rows, coerce NaN → null so
       // JSON.stringify never emits a value the network layer can choke on.
       const num = (v: any) => (v === '' || v == null || Number.isNaN(v)) ? null : Number(v);
+
+      // Date columns bind to a nullable DateOnly server-side. A cleared input
+      // leaves '' in state, which fails model binding with a 400 before the
+      // action runs — send undefined (key omitted) instead.
+      const d = (v: any) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+
       const payload = {
         ...form,
+        dob: d(form.dob),
+        admissionDate: d(form.admissionDate),
+        tcDate: d(form.tcDate),
         siblings: (form.siblings ?? [])
           .filter((s: any) => (s.name ?? '').trim() || (s.class ?? '').trim())
           .map((s: any) => ({ name: s.name ?? '', class: s.class ?? '', relation: s.relation || null, sameSchool: s.sameSchool !== false })),
