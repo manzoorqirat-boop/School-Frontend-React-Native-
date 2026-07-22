@@ -6,7 +6,7 @@ import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField } from '@/components/screen';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -75,10 +75,14 @@ export default function Payroll() {
   }
   async function generate() {
     if (!genForm.teacherId) { Alert.alert('Missing', 'Select a teacher.'); return; }
+    const month = parseInt(genForm.month);
+    const year = parseInt(genForm.year);
+    if (isNaN(month) || month < 1 || month > 12) { Alert.alert('Invalid', 'Select a month.'); return; }
+    if (isNaN(year) || year < 2000 || year > 2100) { Alert.alert('Invalid', 'Enter a valid 4-digit year.'); return; }
     setSaving(true);
     try {
       const slip = await API.post('/api/payroll/generate/teacher', {
-        teacherId: genForm.teacherId, month: parseInt(genForm.month), year: parseInt(genForm.year),
+        teacherId: genForm.teacherId, month, year,
       });
       setPayslips(prev => [slip, ...prev.filter(p => p._id !== slip._id)]);
       setGenOpen(false);
@@ -139,10 +143,10 @@ export default function Payroll() {
       right={
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {tab === 'payslips' && manage && (
-            <TouchableOpacity onPress={openGenerate} style={styles.hBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity>
+            <TouchableOpacity onPress={openGenerate} style={[styles.hBtn, { backgroundColor: moduleColor('payroll'), borderColor: moduleColor('payroll') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity>
           )}
           {tab === 'leaves' && (
-            <TouchableOpacity onPress={openApply} style={styles.hBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity>
+            <TouchableOpacity onPress={openApply} style={[styles.hBtn, { backgroundColor: moduleColor('payroll'), borderColor: moduleColor('payroll') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity>
           )}
         </View>
       }>
@@ -161,7 +165,7 @@ export default function Payroll() {
           data={payslips}
           keyExtractor={p => p._id}
           contentContainerStyle={{ padding: spacing.lg }}
-          ListEmptyComponent={<EmptyState icon="cash" text={manage ? 'No payslips. Use + to generate.' : 'No payslips yet.'} />}
+          ListEmptyComponent={<EmptyState tint={moduleColor('payroll')} icon="cash" text={manage ? 'No payslips. Use + to generate.' : 'No payslips yet.'} />}
           renderItem={({ item: p }) => (
             <ListItem
               title={p.teacherName ?? 'Payslip'}
@@ -176,7 +180,7 @@ export default function Payroll() {
           data={leaves}
           keyExtractor={r => r._id}
           contentContainerStyle={{ padding: spacing.lg }}
-          ListEmptyComponent={<EmptyState icon="airplane" text="No leave applications. Use + to apply." />}
+          ListEmptyComponent={<EmptyState tint={moduleColor('payroll')} icon="airplane" text="No leave applications. Use + to apply." />}
           renderItem={({ item: r }) => (
             <View style={styles.leaveRow}>
               <View style={{ flex: 1 }}>
