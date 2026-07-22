@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useSchoolConfig } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, FormModal, Field, ChipPicker, DateField } from '@/components/screen';
 
 const TYPES = ['unit_test', 'periodic', 'term', 'half_yearly', 'annual', 'custom'];
@@ -136,13 +136,13 @@ export default function Exams() {
   return (
     <Screen title={t('nav.exams', 'Exams')} subtitle={`${exams.length} exams`} colors={rt.gradient} onBack={() => router.back()} scroll={false}
       right={can(user, 'exam:create') ? (
-        <TouchableOpacity onPress={openCreate} style={styles.hBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity>
+        <TouchableOpacity onPress={openCreate} style={[styles.hBtn, { backgroundColor: moduleColor('exams'), borderColor: moduleColor('exams') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity>
       ) : undefined}>
       <FlatList
         data={exams}
         keyExtractor={e => e._id}
         contentContainerStyle={{ padding: spacing.lg }}
-        ListEmptyComponent={<EmptyState icon="document-text" text="No exams yet. Use + to create one." />}
+        ListEmptyComponent={<EmptyState tint={moduleColor('exams')} icon="document-text" text="No exams yet. Use + to create one." />}
         renderItem={({ item: e }) => (
           <ListItem
             title={e.name}
