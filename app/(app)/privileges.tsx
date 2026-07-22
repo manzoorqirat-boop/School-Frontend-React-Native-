@@ -6,7 +6,7 @@ import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole, roleTheme } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, roleTheme, moduleColor } from '@/theme';
 import { Screen, Loading, EmptyState } from '@/components/screen';
 
 type Cfg = { roles: string[]; isCustomized: boolean; default?: string[] };
@@ -40,14 +40,15 @@ export default function Privileges() {
     const cur = matrix[priv];
     const has = cur.roles.includes(role);
     const nextRoles = has ? cur.roles.filter(r => r !== role) : [...cur.roles, role];
-    // optimistic
-    setMatrix({ ...matrix, [priv]: { ...cur, roles: nextRoles, isCustomized: true } });
+    // Optimistic update. Use functional setState so a concurrent toggle on a
+    // different privilege isn't clobbered by this one's stale `matrix` copy.
+    setMatrix(prev => ({ ...prev, [priv]: { ...cur, roles: nextRoles, isCustomized: true } }));
     setSavingKey(priv);
     try {
       await API.put(`/api/privileges/${encodeURIComponent(priv)}`, { roles: nextRoles });
     } catch (e: any) {
       Alert.alert('Save failed', e.message);
-      setMatrix({ ...matrix, [priv]: cur });  // revert
+      setMatrix(prev => ({ ...prev, [priv]: cur }));  // revert only this row
     } finally { setSavingKey(null); }
   }
 
@@ -90,7 +91,7 @@ export default function Privileges() {
           </ScrollView>
         )}
 
-        {privileges.length === 0 && <EmptyState icon="shield" text="No privileges to configure." />}
+        {privileges.length === 0 && <EmptyState tint={moduleColor('privileges')} icon="shield" text="No privileges to configure." />}
 
         {privileges.map(priv => {
           const cfg = matrix[priv];
