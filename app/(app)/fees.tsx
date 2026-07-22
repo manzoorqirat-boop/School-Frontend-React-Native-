@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { exportCSV } from '@/lib/export';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, SearchBar, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField } from '@/components/screen';
 
 const STATUS_TINT: Record<string, string> = { pending: colors.warning, partial: colors.info, paid: colors.success, overdue: colors.danger, cancelled: colors.muted };
@@ -191,7 +191,7 @@ export default function Fees() {
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity onPress={doExport} style={styles.hBtn}><Ionicons name="share-outline" size={20} color={colors.ink} /></TouchableOpacity>
           {can(user, 'fee:create') && (
-            <TouchableOpacity onPress={openGenerate} style={styles.hBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity>
+            <TouchableOpacity onPress={openGenerate} style={[styles.hBtn, { backgroundColor: moduleColor('fees'), borderColor: moduleColor('fees') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity>
           )}
         </View>
       }>
@@ -204,7 +204,7 @@ export default function Fees() {
         keyExtractor={i => i._id}
         contentContainerStyle={{ padding: spacing.lg }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={rt.accent} />}
-        ListEmptyComponent={<EmptyState icon="wallet" text="No invoices. Use + to generate from a fee structure." />}
+        ListEmptyComponent={<EmptyState tint={moduleColor('fees')} icon="wallet" text="No invoices. Use + to generate from a fee structure." />}
         renderItem={({ item: i }) => {
           const bal = (i.total ?? 0) - (i.amountPaid ?? 0);
           return (
