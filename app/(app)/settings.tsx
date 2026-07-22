@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { can } from '@/lib/privileges';
 import { colors, spacing, font, radius, themeForRole, roleTheme } from '@/theme';
 import { Screen, Field, FormModal, Avatar } from '@/components/screen';
 import { useI18n } from '@/i18n';
@@ -65,6 +66,15 @@ export default function Settings() {
           );
         })}
       </View>
+
+      {/* Administration */}
+      {can(user, 'school:settings') && (
+        <>
+          <Text style={styles.section}>{t('settings.administration', 'Administration')}</Text>
+          <Row icon="business" label={t('settings.schoolSetup', 'School setup')} onPress={() => router.push('/(app)/school-setup')} />
+          <Row icon="shield-checkmark" label={t('nav.privileges', 'Roles & privileges')} onPress={() => router.push('/(app)/privileges')} />
+        </>
+      )}
 
       {/* Actions */}
       <Text style={styles.section}>{t('settings.account', 'Account')}</Text>
