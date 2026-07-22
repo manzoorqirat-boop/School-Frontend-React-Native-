@@ -16,8 +16,7 @@
     },
     "android": {
       "package": "com.qmsofts.school",
-      "versionCode": 1,
-      "edgeToEdgeEnabled": true
+      "versionCode": 1
     },
     "plugins": [
       "expo-router",
@@ -27,13 +26,13 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36,
-            "buildToolsVersion": "36.0.0",
-            "minSdkVersion": 24
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "minSdkVersion": 23
           },
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "13.4"
           }
         }
       ]
