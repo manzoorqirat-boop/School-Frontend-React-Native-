@@ -119,10 +119,27 @@ export const API = {
     const data = ct.includes('application/json') ? await res.json() : await res.text();
 
     if (!res.ok) {
-      let msg = (data && (data as any).error) || `HTTP ${res.status}`;
-      if (data && Array.isArray((data as any).details) && (data as any).details.length) {
-        const d = (data as any).details[0];
+      const d0 = data as any;
+      let msg = (d0 && d0.error) || `HTTP ${res.status}`;
+      if (d0 && Array.isArray(d0.details) && d0.details.length) {
+        const d = d0.details[0];
         msg += ': ' + (d.message || d.error || JSON.stringify(d));
+      }
+      // ASP.NET ProblemDetails: model-binding/validation failures come back as
+      // { title, errors: { "$.field": ["reason"] } } with NO `error` key, so
+      // without this the user just sees a bare "HTTP 400".
+      if (d0 && d0.errors && typeof d0.errors === 'object') {
+        const parts: string[] = [];
+        for (const [field, msgs] of Object.entries(d0.errors as Record<string, any>)) {
+          const reason = Array.isArray(msgs) ? msgs[0] : String(msgs);
+          const clean = field.replace(/^\$\./, '');
+          parts.push(clean ? `${clean}: ${reason}` : reason);
+        }
+        if (parts.length) msg = parts.slice(0, 3).join('\n');
+      } else if (d0 && d0.title && !d0.error) {
+        msg = d0.title;
+      } else if (typeof data === 'string' && data.trim()) {
+        msg = data.slice(0, 300);
       }
       const code = data && (data as any).code;
 
