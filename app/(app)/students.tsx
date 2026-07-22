@@ -9,7 +9,7 @@ import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { exportCSV } from '@/lib/export';
 import { translitEnToHi } from '@/lib/translit';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal, Collapsible, DateField, AcademicYearPicker } from '@/components/screen';
 
 
@@ -307,7 +307,7 @@ export default function Students() {
       right={
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity onPress={doExport} style={styles.addBtn}><Ionicons name="share-outline" size={22} color={colors.ink} /></TouchableOpacity>
-          {can(user, 'student:create') && <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity>}
+          {can(user, 'student:create') && <TouchableOpacity onPress={openCreate} style={[styles.addBtn, { backgroundColor: moduleColor('students'), borderColor: moduleColor('students') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity>}
         </View>
       }
     >
@@ -323,7 +323,7 @@ export default function Students() {
         keyExtractor={s => s._id}
         contentContainerStyle={{ padding: spacing.lg }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={rt.accent} />}
-        ListEmptyComponent={<EmptyState icon="people" text="No students match." />}
+        ListEmptyComponent={<EmptyState tint={moduleColor('students')} icon="people" text="No students match." />}
         renderItem={({ item: s }) => (
           <ListItem
             leading={<Avatar name={`${s.firstName} ${s.lastName ?? ''}`} tint={rt.accent} />}
