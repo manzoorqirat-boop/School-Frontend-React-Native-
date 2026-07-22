@@ -146,7 +146,7 @@ export default function FeeStructures() {
                 <Ionicons name="trash" size={18} color={colors.danger} />
               </TouchableOpacity>
             </View>
-            <DateField placeholder="Due date" value={inst.dueDate} onChange={(v) => setInsts(insts.map((x, j) => j === i ? { ...x, dueDate: v } : x))} />
+            <DateField placeholder="Due date" value={inst.dueDate} allowClear={false} onChange={(v) => setInsts(insts.map((x, j) => j === i ? { ...x, dueDate: v } : x))} />
           </View>
         ))}
         {insts.length === 0 && <Text style={styles.hint}>No installments = single annual payment.</Text>}
