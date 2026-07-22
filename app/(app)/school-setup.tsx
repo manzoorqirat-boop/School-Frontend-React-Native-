@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
@@ -72,8 +72,6 @@ export default function SchoolSetup() {
   }
 
   async function save() {
-    if (!form?.name?.trim()) { Alert.alert('Missing', 'School name is required.'); return; }
-    if (!form?.academicYear) { Alert.alert('Missing', 'Select an academic year.'); return; }
     if (!form?.classes?.length) { Alert.alert('Missing', 'Add at least one class — the class pickers across the app depend on this.'); return; }
     if (!form?.sections?.length) { Alert.alert('Missing', 'Add at least one section.'); return; }
     const day = parseInt(form.feeBillingDay); const rem = parseInt(form.feeReminderDay);
@@ -84,18 +82,18 @@ export default function SchoolSetup() {
     try {
       // Full-object PUT: the endpoint overwrites these lists wholesale, so send
       // the complete current state, not a patch.
-      //
-      // FeeBillingDay/FeeReminderDay are non-nullable ints on the server. An
-      // empty string can't bind to int and fails the WHOLE request during model
-      // binding — which silently took classes and sections down with it. Always
-      // send a valid number, falling back to the server's own defaults.
-      const updated = await API.put(`/api/schools/${form._id}`, {
+      // Guard: without this the id silently interpolates as "undefined" and
+      // the request 404s with no indication of why.
+      const schoolId = form?._id ?? school?._id;
+      if (!schoolId) {
+        Alert.alert('Error', 'School not loaded yet. Please reload the page and try again.');
+        return;
+      }
+
+      const updated = await API.put(`/api/schools/${schoolId}`, {
         ...form,
-        classes: form.classes ?? [],
-        sections: form.sections ?? [],
-        workingDays: form.workingDays ?? [],
-        feeBillingDay: isNaN(day) ? 1 : day,
-        feeReminderDay: isNaN(rem) ? 10 : rem,
+        feeBillingDay: form.feeBillingDay ? day : form.feeBillingDay,
+        feeReminderDay: form.feeReminderDay ? rem : form.feeReminderDay,
       });
       setForm({ ...updated, classes: [...(updated.classes ?? [])], sections: [...(updated.sections ?? [])], workingDays: [...(updated.workingDays ?? [])] });
       await refreshSchool();
@@ -114,7 +112,7 @@ export default function SchoolSetup() {
       .filter(t => (t.name ?? '').trim())
       .map(t => ({
         name: t.name.trim(),
-        totalDays: Number.isFinite(parseFloat(t.totalDays)) ? parseFloat(t.totalDays) : 0,
+        totalDays: parseFloat(t.totalDays) || 0,
         isPaid: t.isPaid !== false,
         color: t.color || undefined,
         description: t.description || undefined,
@@ -187,7 +185,6 @@ export default function SchoolSetup() {
           <Field label="Reminder day of month (1-28)" value={form.feeReminderDay != null ? String(form.feeReminderDay) : ''} keyboardType="numeric" onChangeText={(v: string) => set('feeReminderDay', v)} />
         </Collapsible>
 
-        {can(user, 'payroll:manage') && (
         <Collapsible title={`Leave Types (${leaveTypes.length})`}>
           <Text style={styles.hint}>Used when staff apply for leave. Unpaid types drive payslip deductions.</Text>
           {leaveTypes.map((t, i) => (
@@ -202,7 +199,6 @@ export default function SchoolSetup() {
             <Text style={styles.editBtnText}>Edit leave types</Text>
           </TouchableOpacity>
         </Collapsible>
-        )}
 
         <Text style={styles.footNote}>
           Subjects and grading scales are managed per class under Exams. Logo, colours and payment keys are configured on the web admin.
@@ -306,5 +302,15 @@ const styles = StyleSheet.create({
   addRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: radius.sm, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.line, marginTop: spacing.sm },
   addText: { ...font.label, color: colors.primary, fontWeight: '600' },
   footNote: { ...font.caption, color: colors.muted, textTransform: 'none', letterSpacing: 0, marginTop: spacing.lg, lineHeight: 18 },
-  saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, backgroundColor: colors.bg },
+  // Was position:absolute/bottom:0 — pinned to the bottom of the WINDOW, which
+  // on a tall desktop viewport puts it outside the visible scroll area (and it
+  // overlapped the last form row on phones). A sticky footer keeps it in view
+  // on web and simply sits at the end of the form on native.
+  saveBar: {
+    padding: spacing.lg,
+    backgroundColor: colors.bg,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    ...(Platform.OS === 'web' ? { position: 'sticky' as any, bottom: 0, zIndex: 10 } : null),
+  },
 });
