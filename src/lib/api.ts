@@ -54,6 +54,23 @@ async function del(key: string) {
   try { await SecureStore.deleteItemAsync(key); } catch {}
 }
 
+/**
+ * JSON replacer applied to every request body.
+ *
+ * Drops "" for *Date fields: the API models several dates as non-nullable
+ * DateOnly, and an empty string can't bind to one — it fails as an opaque
+ * HTTP 400 before any of our code runs. Omitting the key lets the server
+ * apply its own default/validation instead.
+ *
+ * Also converts NaN → null, which JSON.stringify would otherwise emit as null
+ * inconsistently across engines.
+ */
+function jsonSafe(this: any, key: string, value: any) {
+  if (typeof value === 'number' && Number.isNaN(value)) return null;
+  if (value === '' && /date$/i.test(key)) return undefined;   // omit the key
+  return value;
+}
+
 export const API = {
   base: BASE,
 
@@ -98,7 +115,7 @@ export const API = {
       res = await fetch(this.base + path, {
         method,
         headers,
-        body: body != null ? JSON.stringify(body) : undefined,
+        body: body != null ? JSON.stringify(body, jsonSafe) : undefined,
         signal: controller.signal,
       });
     } catch (err: any) {
@@ -122,12 +139,8 @@ export const API = {
       const d0 = data as any;
       let msg = (d0 && d0.error) || `HTTP ${res.status}`;
       if (d0 && Array.isArray(d0.details) && d0.details.length) {
-        // Show up to 3 field errors, each as "field: reason", so a rejected
-        // save names every offending field instead of just the first.
-        const lines = d0.details.slice(0, 3).map((d: any) =>
-          d?.field ? `${d.field}: ${d.message ?? d.error ?? ''}`.trim()
-                   : (d?.message || d?.error || JSON.stringify(d)));
-        msg += ':\n' + lines.join('\n');
+        const d = d0.details[0];
+        msg += ': ' + (d.message || d.error || JSON.stringify(d));
       }
       // ASP.NET ProblemDetails: model-binding/validation failures come back as
       // { title, errors: { "$.field": ["reason"] } } with NO `error` key, so
