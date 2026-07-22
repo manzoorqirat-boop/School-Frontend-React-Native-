@@ -4,19 +4,19 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useSchoolConfig } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, FormModal, Field, ChipPicker, DateField } from '@/components/screen';
 
-const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
-const SECTIONS = ['', 'A','B','C','D','E'];
 const TYPES = ['unit_test', 'periodic', 'term', 'half_yearly', 'annual', 'custom'];
 const STATUS_TINT: Record<string, string> = { draft: colors.muted, published: colors.success };
 
 export default function Exams() {
   const router = useRouter();
   const { user } = useAuth();
+  const { classes, sectionsWithBlank } = useSchoolConfig();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
 
@@ -181,8 +181,8 @@ export default function Exams() {
         onSubmit={save} submitting={saving} submitLabel={editing ? 'Update' : 'Create'}>
         <Field label="Name *" value={form.name} placeholder="e.g. Unit Test 1" onChangeText={(v: string) => setForm({ ...form, name: v })} />
         <ChipPicker label="Type" options={TYPES} value={form.type ?? 'unit_test'} onChange={(v) => setForm({ ...form, type: v })} />
-        {!editing && <ChipPicker label="Class *" options={CLASSES} value={form.class ?? '1'} onChange={(v) => { setForm({ ...form, class: v }); loadSubjects(v); }} />}
-        <ChipPicker label="Section (blank = all)" options={SECTIONS} value={form.section ?? ''} onChange={(v) => setForm({ ...form, section: v })} />
+        {!editing && <ChipPicker label="Class *" options={classes} value={form.class ?? '1'} onChange={(v) => { setForm({ ...form, class: v }); loadSubjects(v); }} />}
+        <ChipPicker label="Section (blank = all)" options={sectionsWithBlank} value={form.section ?? ''} onChange={(v) => setForm({ ...form, section: v })} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}><DateField label="From *" value={form.fromDate} onChange={(v) => setForm({ ...form, fromDate: v })} /></View>
           <View style={{ flex: 1 }}><DateField label="To *" value={form.toDate} onChange={(v) => setForm({ ...form, toDate: v })} /></View>
