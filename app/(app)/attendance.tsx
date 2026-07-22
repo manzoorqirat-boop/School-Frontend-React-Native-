@@ -4,14 +4,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useSchoolConfig } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, ChipPicker, Avatar, EmptyState, Loading, Field, FormModal } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
 
-const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
-const SECTIONS = ['A','B','C','D','E'];
 const PERIODS = ['1','2','3','4','5','6','7','8'];
 const STATUSES = [
   { key: 'present', label: 'P', tint: colors.success },
@@ -26,6 +25,7 @@ const today = () => iso(new Date());
 export default function Attendance() {
   const router = useRouter();
   const { user } = useAuth();
+  const { classes, sections } = useSchoolConfig();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
   const canMark = can(user, 'attendance:mark');
@@ -138,8 +138,8 @@ export default function Attendance() {
           </TouchableOpacity>
         </View>
 
-        <ChipPicker label="Class" options={CLASSES} value={cls} onChange={(v) => { setCls(v); setRoster(null); }} />
-        <ChipPicker label="Section" options={SECTIONS} value={sec} onChange={(v) => { setSec(v); setRoster(null); }} />
+        <ChipPicker label="Class" options={classes} value={cls} onChange={(v) => { setCls(v); setRoster(null); }} />
+        <ChipPicker label="Section" options={sections} value={sec} onChange={(v) => { setSec(v); setRoster(null); }} />
         <ChipPicker label="Mode" options={['daily', 'period']} value={mode} onChange={(v) => { setMode(v as any); setRoster(null); }} />
         {mode === 'period' && (
           <>
