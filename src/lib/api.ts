@@ -122,8 +122,12 @@ export const API = {
       const d0 = data as any;
       let msg = (d0 && d0.error) || `HTTP ${res.status}`;
       if (d0 && Array.isArray(d0.details) && d0.details.length) {
-        const d = d0.details[0];
-        msg += ': ' + (d.message || d.error || JSON.stringify(d));
+        // Show up to 3 field errors, each as "field: reason", so a rejected
+        // save names every offending field instead of just the first.
+        const lines = d0.details.slice(0, 3).map((d: any) =>
+          d?.field ? `${d.field}: ${d.message ?? d.error ?? ''}`.trim()
+                   : (d?.message || d?.error || JSON.stringify(d)));
+        msg += ':\n' + lines.join('\n');
       }
       // ASP.NET ProblemDetails: model-binding/validation failures come back as
       // { title, errors: { "$.field": ["reason"] } } with NO `error` key, so
