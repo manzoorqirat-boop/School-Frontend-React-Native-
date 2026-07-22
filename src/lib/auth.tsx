@@ -40,7 +40,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    try { await API.post('/api/auth/logout', {}); } catch {}
+    // Revoke server-side first, but with a hard timeout so a slow/offline
+    // network can't hold the UI on an authed screen. `call()` reads the token
+    // asynchronously, so this must complete (or time out) BEFORE clearSession,
+    // otherwise the request goes out unauthenticated and the refresh token
+    // survives on the server.
+    await Promise.race([
+      API.post('/api/auth/logout', {}).catch(() => {}),
+      new Promise(res => setTimeout(res, 1500)),
+    ]);
     await API.clearSession();
     setUser(null);
     setSchool(null);
