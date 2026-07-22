@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import { API } from '@/lib/api';
-import { colors, spacing, font, radius, roleAccent, roleLabel } from '@/theme';
+import { colors, spacing, font, radius, roleAccent, roleLabel, moduleColor } from '@/theme';
 
 export default function Dashboard() {
   const { user, school, signOut } = useAuth();
@@ -86,16 +86,28 @@ export default function Dashboard() {
         <Text style={styles.greeting}>Good day,{'\n'}{(user?.name ?? 'there').split(' ')[0]}</Text>
         <Text style={styles.school}>{school?.name ?? 'Your school'}</Text>
 
-        {/* Stats — two quiet cards */}
+        {/* Stats — quiet cards, with colour carrying meaning (dues turn amber) */}
         <View style={styles.statRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Students</Text>
+          <TouchableOpacity style={styles.statCard} activeOpacity={0.7} onPress={() => router.push('/(app)/students' as any)}>
+            <View style={styles.statHead}>
+              <View style={[styles.statIcon, { backgroundColor: moduleColor('students') + '14' }]}>
+                <Ionicons name="people" size={14} color={moduleColor('students')} />
+              </View>
+              <Text style={styles.statLabel}>Students</Text>
+            </View>
             <Text style={styles.statValue}>{stats.students ?? '—'}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Fees outstanding</Text>
-            <Text style={styles.statValue}>{stats.feesOutstanding != null ? `₹${Number(stats.feesOutstanding).toLocaleString('en-IN')}` : '—'}</Text>
-          </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statCard} activeOpacity={0.7} onPress={() => router.push('/(app)/fees' as any)}>
+            <View style={styles.statHead}>
+              <View style={[styles.statIcon, { backgroundColor: (stats.feesOutstanding ? colors.warning : moduleColor('fees')) + '14' }]}>
+                <Ionicons name="wallet" size={14} color={stats.feesOutstanding ? colors.warning : moduleColor('fees')} />
+              </View>
+              <Text style={styles.statLabel}>Fees outstanding</Text>
+            </View>
+            <Text style={[styles.statValue, !!stats.feesOutstanding && { color: colors.warning }]}>
+              {stats.feesOutstanding != null ? `₹${Number(stats.feesOutstanding).toLocaleString('en-IN')}` : '—'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Actions — a clean grid, hairline tiles */}
@@ -103,7 +115,9 @@ export default function Dashboard() {
         <View style={styles.grid}>
           {actions.map(a => (
             <TouchableOpacity key={a.key} style={styles.tile} activeOpacity={0.7} onPress={() => router.push(a.route as any)}>
-              <View style={styles.tileIcon}><Ionicons name={a.icon} size={20} color={colors.ink} /></View>
+              <View style={[styles.tileIcon, { backgroundColor: moduleColor(a.key) + '14' }]}>
+                <Ionicons name={a.icon} size={20} color={moduleColor(a.key)} />
+              </View>
               <Text style={styles.tileLabel} numberOfLines={1}>{a.label}</Text>
             </TouchableOpacity>
           ))}
@@ -128,6 +142,8 @@ const styles = StyleSheet.create({
 
   statRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl },
   statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg },
+  statHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statIcon: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   statLabel: { ...font.caption, color: colors.muted, textTransform: 'none', letterSpacing: 0 },
   statValue: { ...font.h1, color: colors.ink, marginTop: spacing.xs },
 
