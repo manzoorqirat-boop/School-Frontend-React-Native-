@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { localDate as iso } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
@@ -24,7 +25,6 @@ const LABELS: Record<string, string> = {
   leave: 'Leave (paid)', unpaid_leave: 'Unpaid leave', on_duty: 'On duty', holiday: 'Holiday',
 };
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 const today = () => iso(new Date());
 
 export default function TeacherAttendance() {
