@@ -140,9 +140,13 @@ export function DateField({
   const years: number[] = [];
   for (let y = yEnd; y >= yStart; y--) years.push(y);
 
-  const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? { y: +value.slice(0, 4), m: +value.slice(5, 7), d: +value.slice(8, 10) }
-    : null;
+  // Accept both "YYYY-MM-DD" and full ISO ("YYYY-MM-DDTHH:mm:ssZ") — the API
+  // returns the latter, and an unparsed value would render as an empty field.
+  const parsed = (() => {
+    if (!value || typeof value !== 'string') return null;
+    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? { y: +m[1], m: +m[2], d: +m[3] } : null;
+  })();
 
   const [open, setOpen] = React.useState(false);
   const [y, setY] = React.useState(parsed?.y ?? now.getFullYear());
@@ -213,8 +217,11 @@ export function TimeField({
   label?: string; value?: string; onChange: (v: string) => void;
   placeholder?: string; minuteStep?: number; allowClear?: boolean;
 }) {
-  const parsed = value && /^\d{1,2}:\d{2}$/.test(value)
-    ? { h: +value.split(':')[0], mi: +value.split(':')[1] } : null;
+  const parsed = (() => {
+    if (!value || typeof value !== 'string') return null;
+    const m = value.match(/(?:^|T)(\d{1,2}):(\d{2})/);
+    return m ? { h: +m[1], mi: +m[2] } : null;
+  })();
   const [open, setOpen] = React.useState(false);
   const [h, setH] = React.useState(parsed?.h ?? 9);
   const [mi, setMi] = React.useState(parsed?.mi ?? 0);
