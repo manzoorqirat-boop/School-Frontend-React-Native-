@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, ListItem, EmptyState, Loading, FormModal, Field, ChipPicker } from '@/components/screen';
+import { Screen, ListItem, EmptyState, Loading, FormModal, Field, ChipPicker, DateField } from '@/components/screen';
 
 const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
 const SECTIONS = ['', 'A','B','C','D','E'];
@@ -184,8 +184,8 @@ export default function Exams() {
         {!editing && <ChipPicker label="Class *" options={CLASSES} value={form.class ?? '1'} onChange={(v) => { setForm({ ...form, class: v }); loadSubjects(v); }} />}
         <ChipPicker label="Section (blank = all)" options={SECTIONS} value={form.section ?? ''} onChange={(v) => setForm({ ...form, section: v })} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1 }}><Field label="From *" value={form.fromDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => setForm({ ...form, fromDate: v })} /></View>
-          <View style={{ flex: 1 }}><Field label="To *" value={form.toDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => setForm({ ...form, toDate: v })} /></View>
+          <View style={{ flex: 1 }}><DateField label="From *" value={form.fromDate} onChange={(v) => setForm({ ...form, fromDate: v })} /></View>
+          <View style={{ flex: 1 }}><DateField label="To *" value={form.toDate} onChange={(v) => setForm({ ...form, toDate: v })} /></View>
         </View>
 
         {!editing && (
