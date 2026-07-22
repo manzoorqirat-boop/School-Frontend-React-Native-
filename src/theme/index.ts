@@ -36,7 +36,39 @@ export const colors = {
     superadmin: '#B45309', school_admin: '#5B34E0', principal: '#4338CA',
     accountant: '#B45309', teacher: '#0F766E', parent: '#BE123C', student: '#6D28D9',
   } as Record<string, string>,
+
+  // Per-module accents. The app is deliberately near-monochrome, so colour is
+  // reserved for *identity*: each module keeps one hue across its dashboard
+  // tile and screen header, which makes the grid scannable by colour instead
+  // of forcing users to read all twelve labels. Everything else stays quiet.
+  module: {
+    students:          '#5B34E0',   // violet  — the core record
+    promote:           '#7C3AED',   // violet light — related to students
+    attendance:        '#0F766E',   // teal    — daily routine
+    'staff-attendance':'#0D9488',   // teal light
+    fees:              '#12A150',   // green   — money in
+    'fee-structures':  '#059669',   // green deep
+    payroll:           '#B45309',   // amber   — money out
+    exams:             '#4338CA',   // indigo  — assessment
+    marks:             '#4F46E5',   // indigo light
+    'report-cards':    '#6366F1',   // indigo soft
+    timetable:         '#0284C7',   // blue    — scheduling
+    'my-classes':      '#0369A1',   // blue deep
+    users:             '#BE123C',   // rose    — people admin
+    privileges:        '#9F1239',   // rose deep — sensitive
+    polls:             '#C2410C',   // orange  — engagement
+    audit:             '#52525B',   // slate   — system log
+    settings:          '#52525B',
+    'school-setup':    '#3F3F46',
+    superadmin:        '#B45309',
+    portal:            '#5B34E0',
+  } as Record<string, string>,
 };
+
+/** Accent for a module key; falls back to the primary brand colour. */
+export function moduleColor(key?: string): string {
+  return (key && colors.module[key]) || colors.primary;
+}
 
 export function roleAccent(role?: string): string {
   return colors.role[role ?? ''] ?? colors.primary;
