@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useSchoolConfig } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField, AcademicYearPicker } from '@/components/screen';
 
 const FREQ = ['annual', 'monthly', 'quarterly', 'one_time'];
@@ -79,12 +79,12 @@ export default function FeeStructures() {
 
   return (
     <Screen title="Fee Structures" subtitle={`${structures.length} defined`} colors={rt.gradient} onBack={() => router.back()} scroll={false}
-      right={can(user, 'fee:manage') ? <TouchableOpacity onPress={openCreate} style={styles.addBtn}><Ionicons name="add" size={22} color={colors.ink} /></TouchableOpacity> : undefined}>
+      right={can(user, 'fee:manage') ? <TouchableOpacity onPress={openCreate} style={[styles.addBtn, { backgroundColor: moduleColor('fee-structures'), borderColor: moduleColor('fee-structures') }]}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity> : undefined}>
       <FlatList
         data={structures}
         keyExtractor={s => s._id}
         contentContainerStyle={{ padding: spacing.lg }}
-        ListEmptyComponent={<EmptyState icon="pricetags" text="No fee structures yet." />}
+        ListEmptyComponent={<EmptyState tint={moduleColor('fee-structures')} icon="pricetags" text="No fee structures yet." />}
         renderItem={({ item: s }) => {
           const total = (s.heads ?? []).reduce((a: number, h: any) => a + (h.amount ?? 0), 0);
           return (
