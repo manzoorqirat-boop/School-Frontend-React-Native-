@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { useSchoolConfig } from '@/lib/schoolConfig';
+import { useSchoolConfig, localDate } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
@@ -65,7 +65,7 @@ export default function Timetable() {
 
   // ── Create the timetable itself (when none exists) ──────────────────────
   function openCreateTimetable() {
-    setCreateForm({ academicYear: '', fromDate: new Date().toISOString().slice(0, 10) });
+    setCreateForm({ academicYear: '', fromDate: localDate() });
     setCreateOpen(true);
   }
   async function createTimetable() {
