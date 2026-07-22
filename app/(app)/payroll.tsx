@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
+import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField } from '@/components/screen';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const LEAVE_TINT: Record<string, string> = { pending: colors.warning, approved: colors.success, rejected: colors.danger };
@@ -241,8 +241,8 @@ export default function Payroll() {
         )}
         <ChipPicker label="Type *" options={leaveTypes.map((lt: any) => lt.name)} value={applyForm.type} onChange={(v) => setApplyForm({ ...applyForm, type: v })} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1 }}><Field label="From *" value={applyForm.fromDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => setApplyForm({ ...applyForm, fromDate: v })} /></View>
-          <View style={{ flex: 1 }}><Field label="To *" value={applyForm.toDate} placeholder="YYYY-MM-DD" onChangeText={(v: string) => setApplyForm({ ...applyForm, toDate: v })} /></View>
+          <View style={{ flex: 1 }}><DateField label="From *" value={applyForm.fromDate} onChange={(v) => setApplyForm({ ...applyForm, fromDate: v })} /></View>
+          <View style={{ flex: 1 }}><DateField label="To *" value={applyForm.toDate} onChange={(v) => setApplyForm({ ...applyForm, toDate: v })} /></View>
         </View>
         <Field label="Days *" value={applyForm.days} keyboardType="numeric" placeholder="e.g. 1 or 0.5" onChangeText={(v: string) => setApplyForm({ ...applyForm, days: v })} />
         <Field label="Reason" value={applyForm.reason} onChangeText={(v: string) => setApplyForm({ ...applyForm, reason: v })} />
