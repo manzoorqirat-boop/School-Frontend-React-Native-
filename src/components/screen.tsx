@@ -97,10 +97,17 @@ export function Avatar({ name, tint = colors.primary, size = 42 }: { name?: stri
 }
 
 // ── Empty / loading / error states ──────────────────────────────────────────
-export function EmptyState({ icon = 'file-tray', text }: { icon?: keyof typeof Ionicons.glyphMap; text: string }) {
+export function EmptyState({ icon = 'file-tray', text, tint }: {
+  icon?: keyof typeof Ionicons.glyphMap; text: string; tint?: string;
+}) {
+  // A softly tinted disc makes an empty screen read as "nothing here yet"
+  // rather than "something failed" — grey-on-grey looks like an error.
+  const c = tint ?? colors.primary;
   return (
     <View style={styles.empty}>
-      <Ionicons name={icon} size={40} color={colors.muted} />
+      <View style={[styles.emptyDisc, { backgroundColor: c + '12' }]}>
+        <Ionicons name={icon} size={30} color={c} />
+      </View>
       <Text style={styles.emptyText}>{text}</Text>
     </View>
   );
@@ -404,6 +411,7 @@ const styles = StyleSheet.create({
   badgeText: { ...font.caption },
 
   empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
+  emptyDisc: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyText: { ...font.body, color: colors.muted },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
 
