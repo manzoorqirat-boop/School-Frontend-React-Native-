@@ -245,8 +245,8 @@ export default function Payroll() {
         )}
         <ChipPicker label="Type *" options={leaveTypes.map((lt: any) => lt.name)} value={applyForm.type} onChange={(v) => setApplyForm({ ...applyForm, type: v })} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1 }}><DateField label="From *" value={applyForm.fromDate} onChange={(v) => setApplyForm({ ...applyForm, fromDate: v })} /></View>
-          <View style={{ flex: 1 }}><DateField label="To *" value={applyForm.toDate} onChange={(v) => setApplyForm({ ...applyForm, toDate: v })} /></View>
+          <View style={{ flex: 1 }}><DateField label="From *" value={applyForm.fromDate} allowClear={false} onChange={(v) => setApplyForm({ ...applyForm, fromDate: v })} /></View>
+          <View style={{ flex: 1 }}><DateField label="To *" value={applyForm.toDate} allowClear={false} onChange={(v) => setApplyForm({ ...applyForm, toDate: v })} /></View>
         </View>
         <Field label="Days *" value={applyForm.days} keyboardType="numeric" placeholder="e.g. 1 or 0.5" onChangeText={(v: string) => setApplyForm({ ...applyForm, days: v })} />
         <Field label="Reason" value={applyForm.reason} onChangeText={(v: string) => setApplyForm({ ...applyForm, reason: v })} />
