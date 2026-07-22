@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
-import { Screen, Avatar, EmptyState, Loading, Field, FormModal } from '@/components/screen';
+import { Screen, Avatar, EmptyState, Loading, Field, FormModal, TimeField } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
 
 // Staff statuses differ from students — half-day, on-duty, paid vs unpaid leave.
@@ -206,8 +206,8 @@ export default function TeacherAttendance() {
       <FormModal visible={!!noteFor} title={noteFor ? noteFor.teacher.name : ''}
         onClose={() => setNoteFor(null)} onSubmit={saveNote} submitLabel="Save">
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1 }}><Field label="Check-in" value={noteForm.checkIn} placeholder="09:00" onChangeText={(v: string) => setNoteForm({ ...noteForm, checkIn: v })} /></View>
-          <View style={{ flex: 1 }}><Field label="Check-out" value={noteForm.checkOut} placeholder="16:30" onChangeText={(v: string) => setNoteForm({ ...noteForm, checkOut: v })} /></View>
+          <View style={{ flex: 1 }}><TimeField label="Check-in" value={noteForm.checkIn} onChange={(v) => setNoteForm({ ...noteForm, checkIn: v })} /></View>
+          <View style={{ flex: 1 }}><TimeField label="Check-out" value={noteForm.checkOut} onChange={(v) => setNoteForm({ ...noteForm, checkOut: v })} /></View>
         </View>
         <Field label="On-duty note" value={noteForm.onDutyNote} placeholder="e.g. Exam duty at DAV" onChangeText={(v: string) => setNoteForm({ ...noteForm, onDutyNote: v })} />
         <Field label="Remarks" value={noteForm.remarks} onChangeText={(v: string) => setNoteForm({ ...noteForm, remarks: v })} />
