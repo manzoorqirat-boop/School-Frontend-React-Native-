@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useSchoolConfig, localDate as iso } from '@/lib/schoolConfig';
 import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
-import { colors, spacing, font, radius, themeForRole } from '@/theme';
+import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, Avatar, EmptyState, Loading, Field, FormModal } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
 
@@ -172,7 +172,7 @@ export default function Attendance() {
             data={roster}
             keyExtractor={r => r.student._id}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
-            ListEmptyComponent={<EmptyState icon="people" text="No active students in this class." />}
+            ListEmptyComponent={<EmptyState tint={moduleColor('attendance')} icon="people" text="No active students in this class." />}
             renderItem={({ item: r }) => {
               const id = r.student._id;
               const hasNote = !!(notes[id]?.remarks || notes[id]?.leaveReason);
