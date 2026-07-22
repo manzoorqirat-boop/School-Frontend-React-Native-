@@ -8,6 +8,7 @@ type AuthState = {
   signIn: (schoolSlug: string | undefined, username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  refreshSchool: () => Promise<void>;
 };
 
 const Ctx = createContext<AuthState>(null as any);
@@ -45,6 +46,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSchool(null);
   }, []);
 
+  // Re-pull the school after master data changes so class/section pickers
+  // across the app pick up the new lists without a re-login.
+  const refreshSchool = useCallback(async () => {
+    try {
+      const stored = await API.school();
+      if (!stored?._id) return;
+      const fresh = await API.get(`/api/schools/${stored._id}`);
+      if (fresh) { setSchool(fresh); await API.setSchool(fresh); }
+    } catch {}
+  }, []);
+
   const refreshUser = useCallback(async () => {
     try {
       const res = await API.get('/api/auth/me');
@@ -53,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ ready, user, school, signIn, signOut, refreshUser }}>
+    <Ctx.Provider value={{ ready, user, school, signIn, signOut, refreshUser, refreshSchool }}>
       {children}
     </Ctx.Provider>
   );
