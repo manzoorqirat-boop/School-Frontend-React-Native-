@@ -4,12 +4,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useSchoolConfig } from '@/lib/schoolConfig';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
 
-const CLASSES = ['Nursery','LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'];
-const SECTIONS = ['A','B','C','D','E'];
 const ADMINISH = ['school_admin', 'principal', 'superadmin'];
 
 // Teachers: shows YOUR class assignments (these gate attendance marking).
@@ -17,6 +16,7 @@ const ADMINISH = ['school_admin', 'principal', 'superadmin'];
 export default function MyClasses() {
   const router = useRouter();
   const { user } = useAuth();
+  const { classes, sections } = useSchoolConfig();
   const { t } = useI18n();
   const rt = themeForRole(user?.role);
   const isAdmin = ADMINISH.includes(user?.role ?? '');
@@ -121,8 +121,8 @@ export default function MyClasses() {
             ))}
           </ScrollView>
         </View>
-        <ChipPicker label="Class" options={CLASSES} value={form.class} onChange={(v) => setForm({ ...form, class: v })} />
-        <ChipPicker label="Section" options={SECTIONS} value={form.section} onChange={(v) => setForm({ ...form, section: v })} />
+        <ChipPicker label="Class" options={classes} value={form.class} onChange={(v) => setForm({ ...form, class: v })} />
+        <ChipPicker label="Section" options={sections} value={form.section} onChange={(v) => setForm({ ...form, section: v })} />
         <Field label="Subject (blank = homeroom)" value={form.subject} placeholder="e.g. Maths" onChangeText={(v: string) => setForm({ ...form, subject: v })} />
       </FormModal>
     </Screen>
