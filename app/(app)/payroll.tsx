@@ -8,6 +8,7 @@ import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField } from '@/components/screen';
+import { useToast } from '@/components/toast';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const LEAVE_TINT: Record<string, string> = { pending: colors.warning, approved: colors.success, rejected: colors.danger };
@@ -18,6 +19,7 @@ export default function Payroll() {
   const router = useRouter();
   const { user, school } = useAuth();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const manage = can(user, 'payroll:manage');
   const isTeacher = user?.role === 'teacher';
@@ -52,7 +54,7 @@ export default function Payroll() {
         flat.sort((a, b) => String(b.fromDate).localeCompare(String(a.fromDate)));
         setLeaves(flat);
       }
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { toast.error('Could not load payroll', e.message); }
     finally { setLoading(false); }
   }, [isTeacher, user?._id]);
   useEffect(() => { load(); }, [load]);
@@ -86,7 +88,8 @@ export default function Payroll() {
       });
       setPayslips(prev => [slip, ...prev.filter(p => p._id !== slip._id)]);
       setGenOpen(false);
-    } catch (e: any) { Alert.alert('Failed', e.message); }   // surfaces "no active salary structure" etc.
+      toast.success('Payslip generated', `Net ₹${(slip.netPay ?? slip.net ?? 0).toLocaleString('en-IN')}.`);
+    } catch (e: any) { toast.error('Failed', e.message); }   // surfaces "no active salary structure" etc.
     finally { setSaving(false); }
   }
 
@@ -95,7 +98,8 @@ export default function Payroll() {
       const updated = await API.post(`/api/payroll/${slip._id}/${slip.status === 'locked' ? 'unlock' : 'lock'}`);
       setPayslips(prev => prev.map(p => p._id === slip._id ? updated : p));
       setView(updated);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success(updated.status === 'locked' ? 'Payslip locked' : 'Payslip unlocked');
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
 
   // ── Leaves ──────────────────────────────────────────────────────────────
@@ -122,7 +126,8 @@ export default function Payroll() {
       });
       setApplyOpen(false);
       load();
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Leave applied', 'The request has been submitted.');
+    } catch (e: any) { toast.error('Failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -130,7 +135,8 @@ export default function Payroll() {
     try {
       await API.post(`/api/payroll/leaves/${rec.leaveDocId}/records/${rec._id}/${action}`);
       setLeaves(prev => prev.map(r => r._id === rec._id ? { ...r, status: action === 'approve' ? 'approved' : 'rejected' } : r));
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success(action === 'approve' ? 'Leave approved' : 'Leave rejected');
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
 
   if (loading) return <Screen title={t('nav.payroll', 'Payroll')} colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
