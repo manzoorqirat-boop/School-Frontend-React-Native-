@@ -8,12 +8,14 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
+import { useToast } from '@/components/toast';
 
 // Teacher marks entry: exam list → subject → grid → save.
 export default function Marks() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
 
   const [step, setStep] = useState<'exam' | 'subject' | 'grid'>('exam');
@@ -81,9 +83,9 @@ export default function Marks() {
         maxMarks: r.maxMarks, status: r.status,
       }));
       const res = await API.post(`/api/exams/${exam._id}/marksheet/save`, { cells });
-      Alert.alert('Saved', `${res.saved} marks recorded.`);
+      toast.success('Marks saved', `${res.saved} record${res.saved === 1 ? '' : 's'} updated.`);
       setStep('subject');
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
