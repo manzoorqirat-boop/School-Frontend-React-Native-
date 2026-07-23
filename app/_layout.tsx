@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { ToastProvider } from '@/components/toast';
 import { I18nProvider } from '@/i18n';
 import { homeForRole } from '@/lib/api';
 import { View, ActivityIndicator } from 'react-native';
@@ -48,8 +49,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <I18nProvider>
         <AuthProvider>
-          <StatusBar style="light" />
-          <Guard />
+          <ToastProvider>
+            <StatusBar style="light" />
+            <Guard />
+          </ToastProvider>
         </AuthProvider>
       </I18nProvider>
     </SafeAreaProvider>
