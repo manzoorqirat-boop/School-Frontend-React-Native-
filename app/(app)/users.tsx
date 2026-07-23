@@ -8,6 +8,7 @@ import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, roleLabel, moduleColor } from '@/theme';
 import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
+import { useToast } from '@/components/toast';
 
 const ROLES = ['school_admin', 'principal', 'accountant', 'teacher', 'parent', 'student'];
 
@@ -28,6 +29,7 @@ export default function Users() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const manage = can(user, 'user:manage');
 
@@ -48,7 +50,7 @@ export default function Users() {
 
   const load = useCallback(async () => {
     try { const data = await API.get('/api/users?limit=500'); setUsers(data.items ?? []); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+    catch (e: any) { toast.error('Could not load users', e.message); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -108,7 +110,8 @@ export default function Users() {
         setUsers(prev => [created, ...prev]);
       }
       setFormOpen(false);
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+      toast.success(editing ? 'User updated' : 'User created', form.name.trim());
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -121,8 +124,8 @@ export default function Users() {
     try {
       await API.post(`/api/users/${resetFor._id}/reset-password`, { newPassword: resetPw });
       setResetFor(null);
-      Alert.alert('Password reset', `${resetFor.name} will be signed out of all devices and must log in with the new password.`);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Password reset', `${resetFor.name} will be signed out of all devices.`);
+    } catch (e: any) { toast.error('Failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -130,8 +133,8 @@ export default function Users() {
     Alert.alert('Deactivate user', `Deactivate ${u.name}? They will no longer be able to log in.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Deactivate', style: 'destructive', onPress: async () => {
-        try { await API.del(`/api/users/${u._id}`); setUsers(prev => prev.map(x => x._id === u._id ? { ...x, isActive: false } : x)); setView(null); }
-        catch (e: any) { Alert.alert('Failed', e.message); }
+        try { await API.del(`/api/users/${u._id}`); setUsers(prev => prev.map(x => x._id === u._id ? { ...x, isActive: false } : x)); setView(null); toast.success('User deactivated', `${u.name} can no longer log in.`); }
+        catch (e: any) { toast.error('Failed', e.message); }
       }},
     ]);
   }
