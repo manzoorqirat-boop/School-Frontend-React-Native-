@@ -50,6 +50,7 @@ export const colors = {
     'fee-structures':  '#059669',   // green deep
     payroll:           '#B45309',   // amber   — money out
     exams:             '#4338CA',   // indigo  — assessment
+    'exam-config':     '#3730A3',   // indigo deep — exam master data
     marks:             '#4F46E5',   // indigo light
     'report-cards':    '#6366F1',   // indigo soft
     timetable:         '#0284C7',   // blue    — scheduling
