@@ -44,6 +44,12 @@ export default function Timetable() {
   const [entryForm, setEntryForm] = useState<any>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<any>({});
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyTargets, setCopyTargets] = useState<string[]>([]);
+  // Entries live in local state until "Save Timetable" POSTs them. Without a
+  // dirty flag nothing signals that an added/removed period isn't persisted,
+  // which reads as "my timetable disappeared" after leaving the screen.
+  const [dirty, setDirty] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setEntries(null); setTt(null);
@@ -52,9 +58,16 @@ export default function Timetable() {
       const row = (data.items ?? [])[0];
       setTt(row ?? null);
       setEntries(row?.entries ?? []);
+      setDirty(false);
     } catch (e: any) { toast.error('Could not load timetable', e.message); }
     finally { setLoading(false); }
   }, [cls, sec]);
+
+  // Previously the timetable loaded ONLY when the user pressed "Load", so after
+  // creating one — or simply switching class/section — the screen showed
+  // nothing and looked like nothing had been saved. `load` is keyed to
+  // cls/sec, so this covers both mount and any picker change.
+  useEffect(() => { load(); }, [load]);
 
   async function loadTeachers() {
     if (teachers.length) return;
@@ -80,6 +93,7 @@ export default function Timetable() {
         fromDate: createForm.fromDate, term: createForm.term || undefined,
       });
       setTt(created); setEntries(created.entries ?? []);
+      setDirty(false);
       setCreateOpen(false);
       toast.success('Timetable created', `${cls}-${sec} · add periods next.`);
     } catch (e: any) { toast.error('Failed', e.message); }
@@ -107,11 +121,38 @@ export default function Timetable() {
       startTime: entryForm.startTime?.trim() || undefined, endTime: entryForm.endTime?.trim() || undefined,
     };
     setEntries([...(entries ?? []), e]);
+    setDirty(true);
     setFormOpen(false);
   }
 
   function removeEntry(target: Entry) {
     setEntries((entries ?? []).filter(e => !(e.dayOfWeek === target.dayOfWeek && e.slotNumber === target.slotNumber)));
+    setDirty(true);
+  }
+
+  // ── Copy one day's periods onto other days ──────────────────────────────
+  function openCopy() {
+    if (dayEntries.length === 0) { toast.error('Nothing to copy', `${day} has no periods yet.`); return; }
+    setCopyTargets([]);
+    setCopyOpen(true);
+  }
+
+  function toggleCopyTarget(d: string) {
+    setCopyTargets(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+  }
+
+  function applyCopy() {
+    if (copyTargets.length === 0) { toast.error('Pick a day', 'Select at least one day to copy into.'); return; }
+    // Replace target days wholesale rather than appending, so copying twice
+    // doesn't duplicate every period.
+    const targetNums = copyTargets.map(d => DAY_NUM[d]);
+    const kept = (entries ?? []).filter(e => !targetNums.includes(e.dayOfWeek));
+    const copies: Entry[] = [];
+    for (const tn of targetNums) for (const e of dayEntries) copies.push({ ...e, dayOfWeek: tn });
+    setEntries([...kept, ...copies]);
+    setDirty(true);
+    setCopyOpen(false);
+    toast.success('Copied', `${dayEntries.length} period(s) from ${day} to ${copyTargets.join(', ')}. Press Save to persist.`);
   }
 
   async function saveAll() {
@@ -120,6 +161,7 @@ export default function Timetable() {
     try {
       const updated = await API.post(`/api/timetables/${tt._id}/entries`, { entries });
       setTt(updated); setEntries(updated.entries ?? entries);
+      setDirty(false);
       toast.success('Timetable saved', 'The periods have been updated.');
     } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
@@ -172,10 +214,18 @@ export default function Timetable() {
             <ChipPicker label="Day" options={workingDays} value={day} onChange={setDay} />
 
             {editable && (
-              <TouchableOpacity onPress={openAdd} style={[styles.addRow, { borderColor: rt.accent }]}>
-                <Ionicons name="add-circle" size={22} color={rt.accent} />
-                <Text style={[styles.addText, { color: rt.accent }]}>Add period to {day}</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity onPress={openAdd} style={[styles.addRow, { borderColor: rt.accent }]}>
+                  <Ionicons name="add-circle" size={22} color={rt.accent} />
+                  <Text style={[styles.addText, { color: rt.accent }]}>Add period to {day}</Text>
+                </TouchableOpacity>
+                {dayEntries.length > 0 && (
+                  <TouchableOpacity onPress={openCopy} style={[styles.addRow, { borderColor: colors.slate }]}>
+                    <Ionicons name="copy-outline" size={20} color={colors.slate} />
+                    <Text style={[styles.addText, { color: colors.slate }]}>Copy {day} to other days</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
 
             {dayEntries.length === 0
@@ -206,6 +256,12 @@ export default function Timetable() {
 
       {editable && tt && (
         <View style={styles.saveBar}>
+          {dirty && (
+            <View style={styles.dirtyRow}>
+              <Ionicons name="alert-circle" size={15} color={colors.warning} />
+              <Text style={styles.dirtyText}>Unsaved changes — press Save to persist.</Text>
+            </View>
+          )}
           <GradientButton label="Save Timetable" onPress={saveAll} loading={saving} colors={rt.gradient} />
         </View>
       )}
@@ -240,6 +296,24 @@ export default function Timetable() {
         </View>
       </FormModal>
 
+      {/* Copy day → other days */}
+      <FormModal visible={copyOpen} title={`Copy ${day} \u00b7 ${dayEntries.length} period(s)`}
+        onClose={() => setCopyOpen(false)} onSubmit={applyCopy} submitLabel="Copy">
+        <Text style={styles.pickLabel}>Copy into which days?</Text>
+        <Text style={styles.hint}>Selected days are replaced, not appended.</Text>
+        {workingDays.filter(d => d !== day).map(d => {
+          const on = copyTargets.includes(d);
+          const existing = (entries ?? []).filter(e => e.dayOfWeek === DAY_NUM[d]).length;
+          return (
+            <TouchableOpacity key={d} style={styles.copyRow} onPress={() => toggleCopyTarget(d)}>
+              <Ionicons name={on ? 'checkbox' : 'square-outline'} size={22} color={on ? colors.primary : colors.muted} />
+              <Text style={styles.copyDay}>{d}</Text>
+              {existing > 0 && <Text style={styles.copyWarn}>{existing} will be replaced</Text>}
+            </TouchableOpacity>
+          );
+        })}
+      </FormModal>
+
       {/* Create timetable */}
       <FormModal visible={createOpen} title={`New timetable \u00b7 ${cls}-${sec}`} onClose={() => setCreateOpen(false)}
         onSubmit={createTimetable} submitting={saving} submitLabel="Create">
@@ -270,4 +344,10 @@ const styles = StyleSheet.create({
   teachName: { ...font.body, color: colors.ink },
   hint: { ...font.label, color: colors.muted, fontStyle: 'italic' },
   saveBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, backgroundColor: colors.bg },
+  dirtyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
+  dirtyText: { ...font.caption, color: colors.warning, textTransform: 'none', letterSpacing: 0 },
+  // 44px min height keeps each day inside the iOS/Android minimum tap target.
+  copyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingVertical: 6 },
+  copyDay: { ...font.body, color: colors.ink, fontWeight: '600' },
+  copyWarn: { ...font.caption, color: colors.warning, marginLeft: 'auto', textTransform: 'none', letterSpacing: 0 },
 });
