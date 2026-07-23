@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, Avatar, EmptyState, Loading, Field, FormModal } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
+import { useToast } from '@/components/toast';
 
 const PERIODS = ['1','2','3','4','5','6','7','8'];
 const STATUSES = [
@@ -26,6 +27,7 @@ export default function Attendance() {
   const { user } = useAuth();
   const { classes, sections } = useSchoolConfig();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const canMark = can(user, 'attendance:mark');
 
@@ -92,10 +94,13 @@ export default function Attendance() {
       if (mode === 'period') { body.period = parseInt(period); if (subject.trim()) body.subject = subject.trim(); }
       const res = await API.post('/api/attendance/mark-bulk', body);
       const errCount = (res.errors ?? []).length;
-      Alert.alert(errCount ? 'Saved with issues' : 'Saved',
-        `${res.created ?? 0} new · ${res.updated ?? 0} updated · ${res.unchanged ?? 0} unchanged${errCount ? `\n${errCount} entr${errCount === 1 ? 'y' : 'ies'} failed` : ''}`);
+      const summary = `${res.created ?? 0} new · ${res.updated ?? 0} updated · ${res.unchanged ?? 0} unchanged`;
+      if (errCount)
+        toast.warning('Saved with issues', `${summary}\n${errCount} entr${errCount === 1 ? 'y' : 'ies'} failed`);
+      else
+        toast.success('Attendance saved', summary);
       setLastMarked({ at: new Date().toISOString(), by: user?.name });
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
