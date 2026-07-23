@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, EmptyState, Loading, FormModal } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
+import { useToast } from '@/components/toast';
 
 
 type Row = {
@@ -41,6 +42,7 @@ export default function Promote() {
   const { user, school } = useAuth();
   const { classes, sections } = useSchoolConfig();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const classOrder: string[] = classes;   // configured order drives promotion mapping
   const ays = ayList(school);
@@ -97,7 +99,7 @@ export default function Promote() {
           toSection: g.sec, count: g.count, graduate: terminal,
         };
       }));
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { toast.error('Error', e.message); }
     finally { setBuilding(false); }
   }, [fromAY, toAY, classOrder]);
 
@@ -134,8 +136,8 @@ export default function Promote() {
       });
       setConfirmOpen(false);
       setRows(null);
-      Alert.alert('Promotion complete', `${res.totalPromoted ?? 0} student(s) moved from ${fromAY} to ${toAY}.`);
-    } catch (e: any) { Alert.alert('Promotion failed', e.message); }
+      toast.success('Promotion complete', `${res.totalPromoted ?? 0} student(s) moved from ${fromAY} to ${toAY}.`);
+    } catch (e: any) { toast.error('Promotion failed', e.message); }
     finally { setSaving(false); }
   }
 
