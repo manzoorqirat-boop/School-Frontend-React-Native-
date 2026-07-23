@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, EmptyState, Loading, Field, FormModal, DateField, TimeField, AcademicYearPicker } from '@/components/screen';
 import { GradientButton, Card } from '@/components/ui';
+import { useToast } from '@/components/toast';
 
 // Backend contract: 0=Sun..6=Sat, so Mon=1..Sat=6.
 const DAY_NUM: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
@@ -26,6 +27,7 @@ export default function Timetable() {
   const { user, school } = useAuth();
   const { classes, sections, workingDays } = useSchoolConfig();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const editable = can(user, 'timetable:manage');
 
@@ -50,7 +52,7 @@ export default function Timetable() {
       const row = (data.items ?? [])[0];
       setTt(row ?? null);
       setEntries(row?.entries ?? []);
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { toast.error('Could not load timetable', e.message); }
     finally { setLoading(false); }
   }, [cls, sec]);
 
@@ -79,7 +81,8 @@ export default function Timetable() {
       });
       setTt(created); setEntries(created.entries ?? []);
       setCreateOpen(false);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Timetable created', `${cls}-${sec} · add periods next.`);
+    } catch (e: any) { toast.error('Failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -117,8 +120,8 @@ export default function Timetable() {
     try {
       const updated = await API.post(`/api/timetables/${tt._id}/entries`, { entries });
       setTt(updated); setEntries(updated.entries ?? entries);
-      Alert.alert('Saved', 'Timetable updated.');
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+      toast.success('Timetable saved', 'The periods have been updated.');
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -126,8 +129,8 @@ export default function Timetable() {
     try {
       const updated = await API.post(`/api/timetables/${tt._id}/publish`);
       setTt(updated);
-      Alert.alert('Published', 'This timetable is now active for students & parents.');
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Timetable published', 'Now active for students & parents.');
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
 
   const selTeacher = teachers.find(x => x._id === entryForm.teacherId);
