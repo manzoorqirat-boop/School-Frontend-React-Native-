@@ -6,17 +6,20 @@ import { API } from '@/lib/api';
 import { themeForRole, colors, spacing, font, radius, moduleColor } from '@/theme';
 import { GradientHeader, StatTile, Card, Chip } from '@/components/ui';
 import { Field, ChipPicker, FormModal } from '@/components/screen';
+import { useToast } from '@/components/toast';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Superadmin() {
   const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
+  const toast = useToast();
   const rt = themeForRole('superadmin');
   const [schools, setSchools] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    try { const data = await API.get<any[]>('/api/schools'); setSchools(Array.isArray(data) ? data : []); } catch {}
+    try { const data = await API.get<any[]>('/api/schools'); setSchools(Array.isArray(data) ? data : []); }
+    catch (e: any) { toast.error('Could not load schools', e.message); }
   }, []);
   useEffect(() => { load(); }, [load]);
   const onRefresh = useCallback(async () => { setRefreshing(true); await load(); setRefreshing(false); }, [load]);
@@ -46,7 +49,7 @@ export default function Superadmin() {
       setFormOpen(false);
       setForm({ type: 'k12' });
       Alert.alert('School created', `Admin login: ${res.admin?.username}`);
-    } catch (e: any) { Alert.alert('Create failed', e.message); }
+    } catch (e: any) { toast.error('Create failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -54,8 +57,8 @@ export default function Superadmin() {
     Alert.alert('Deactivate school', `Deactivate "${sch.name}"? Its users will no longer be able to log in.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Deactivate', style: 'destructive', onPress: async () => {
-        try { await API.del(`/api/schools/${sch._id}`); setSchools(prev => prev.map(x => x._id === sch._id ? { ...x, isActive: false } : x)); }
-        catch (e: any) { Alert.alert('Failed', e.message); }
+        try { await API.del(`/api/schools/${sch._id}`); setSchools(prev => prev.map(x => x._id === sch._id ? { ...x, isActive: false } : x)); toast.success('School deactivated', `"${sch.name}" users can no longer log in.`); }
+        catch (e: any) { toast.error('Failed', e.message); }
       }},
     ]);
   }
