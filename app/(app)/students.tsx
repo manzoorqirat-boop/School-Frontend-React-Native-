@@ -11,6 +11,7 @@ import { exportCSV } from '@/lib/export';
 import { translitEnToHi } from '@/lib/translit';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, SearchBar, ListItem, Avatar, EmptyState, Loading, Field, ChipPicker, FormModal, Collapsible, DateField, AcademicYearPicker } from '@/components/screen';
+import { useToast } from '@/components/toast';
 
 
 // Public student-profile links resolve on the web frontend, not the API host.
@@ -39,6 +40,7 @@ export default function Students() {
   const { user, school } = useAuth();
   const { classes, sections } = useSchoolConfig();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const [all, setAll] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function Students() {
 
   const load = useCallback(async () => {
     try { const data = await API.get('/api/students?limit=2000'); setAll(data.items ?? []); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+    catch (e: any) { toast.error('Could not load students', e.message); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -159,8 +161,11 @@ export default function Students() {
       const saved = editingId ? await API.put(`/api/students/${editingId}`, payload) : await API.post('/api/students', payload);
       setAll(prev => editingId ? prev.map(x => x._id === editingId ? { ...x, ...saved } : x) : [saved, ...prev]);
       setFormOpen(false);
+      const name = [saved.firstName, saved.lastName].filter(Boolean).join(' ') || 'Student';
+      toast.success(editingId ? 'Student updated' : 'Student added', name);
+      // Parent credentials are shown once and must not be missed — keep as modal.
       if (saved._parent?.created) Alert.alert('Parent account created', `Username: ${saved._parent.username}\nPassword: ${saved._parent.password}`);
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -202,7 +207,8 @@ export default function Students() {
       const updated = { ...s, shareToken: undefined, shareEnabled: false };
       setAll((prev: any[]) => prev.map((x: any) => x._id === s._id ? updated : x));
       setView((v: any) => v && v._id === s._id ? updated : v);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Sharing disabled', 'The public profile link no longer works.');
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
 
   async function shareWhatsApp(s0: any) {
@@ -214,7 +220,7 @@ export default function Students() {
       const ok = await Linking.canOpenURL(url);
       if (!ok) { Alert.alert('WhatsApp not available', 'Install WhatsApp or use another share option.'); return; }
       Linking.openURL(url);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
   async function shareSMS(s0: any) {
     try {
@@ -223,7 +229,7 @@ export default function Students() {
       const body = encodeURIComponent(buildShareText(s));
       const sep = Platform.OS === 'ios' ? '&' : '?';
       Linking.openURL(`sms:${phone ? '+91' + phone : ''}${sep}body=${body}`);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
   async function shareEmail(s0: any) {
     try {
@@ -231,7 +237,7 @@ export default function Students() {
       const subject = encodeURIComponent(`Student Profile — ${[s.firstName, s.lastName].filter(Boolean).join(' ')}`);
       const body = encodeURIComponent(buildShareText(s));
       Linking.openURL(`mailto:${s.email || ''}?subject=${subject}&body=${body}`);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
   async function shareSheet(s0: any) {
     try {
@@ -252,8 +258,8 @@ export default function Students() {
     Alert.alert('Deactivate student', `Set ${s.firstName} inactive?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Deactivate', style: 'destructive', onPress: async () => {
-        try { await API.del(`/api/students/${s._id}`); setAll(prev => prev.map(x => x._id === s._id ? { ...x, status: 'inactive' } : x)); setView(null); }
-        catch (e: any) { Alert.alert('Error', e.message); }
+        try { await API.del(`/api/students/${s._id}`); setAll(prev => prev.map(x => x._id === s._id ? { ...x, status: 'inactive' } : x)); setView(null); toast.success('Student deactivated', `${s.firstName} is now inactive.`); }
+        catch (e: any) { toast.error('Error', e.message); }
       }},
     ]);
   }
@@ -262,7 +268,7 @@ export default function Students() {
     try {
       await exportCSV('students', ['Name', 'Admission No', 'Class', 'Section', 'Roll', 'Father', 'Phone', 'Status'],
         filtered.map(s => [`${s.firstName} ${s.lastName ?? ''}`.trim(), s.admissionNo, s.class, s.section, s.rollNo, s.fatherName, s.fatherPhone, s.status ?? 'active']));
-    } catch (e: any) { Alert.alert('Export failed', e.message); }
+    } catch (e: any) { toast.error('Export failed', e.message); }
   }
 
   const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
