@@ -8,6 +8,7 @@ import { can } from '@/lib/privileges';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, Field, Collapsible, Loading, EmptyState, AcademicYearPicker, FormModal } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
+import { useToast } from '@/components/toast';
 
 const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -17,6 +18,7 @@ const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export default function SchoolSetup() {
   const router = useRouter();
   const { user, school, refreshSchool } = useAuth();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const editable = can(user, 'school:settings');
 
@@ -42,7 +44,7 @@ export default function SchoolSetup() {
         setLeaveTypes(lt.types ?? []);
         setRequireApproval(lt.requireApproval !== false);
       } catch { /* payroll may be out of scope for this role */ }
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { toast.error('Could not load school setup', e.message); }
     finally { setLoading(false); }
   }
 
@@ -97,8 +99,8 @@ export default function SchoolSetup() {
       });
       setForm({ ...updated, classes: [...(updated.classes ?? [])], sections: [...(updated.sections ?? [])], workingDays: [...(updated.workingDays ?? [])] });
       await refreshSchool();
-      Alert.alert('Saved', 'School setup updated. Class and section pickers across the app now use these lists.');
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+      toast.success('School setup saved', 'Class & section pickers across the app now use these lists.');
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -124,7 +126,8 @@ export default function SchoolSetup() {
       const lt = await API.get('/api/payroll/leave-types');
       setLeaveTypes(lt.types ?? []);
       setLtOpen(false);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Leave types saved', `${types.length} type${types.length === 1 ? '' : 's'} configured.`);
+    } catch (e: any) { toast.error('Failed', e.message); }
     finally { setSaving(false); }
   }
 
