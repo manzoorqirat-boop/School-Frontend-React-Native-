@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, Avatar, EmptyState, Loading, Field, FormModal, TimeField } from '@/components/screen';
 import { GradientButton } from '@/components/ui';
+import { useToast } from '@/components/toast';
 
 // Staff statuses differ from students — half-day, on-duty, paid vs unpaid leave.
 const STATUSES = [
@@ -31,6 +32,7 @@ export default function TeacherAttendance() {
   const router = useRouter();
   const { user, school } = useAuth();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const canMark = can(user, 'teacher_attendance:mark');
 
@@ -111,10 +113,11 @@ export default function TeacherAttendance() {
         date, academicYear: academicYear || undefined, entries,
       });
       const errCount = (res.errors ?? []).length;
-      Alert.alert(errCount ? 'Saved with issues' : 'Saved',
-        `${res.created ?? 0} new · ${res.updated ?? 0} updated · ${res.unchanged ?? 0} unchanged${errCount ? `\n${errCount} failed` : ''}`);
+      const summary = `${res.created ?? 0} new · ${res.updated ?? 0} updated · ${res.unchanged ?? 0} unchanged`;
+      if (errCount) toast.warning('Saved with issues', `${summary}\n${errCount} failed`);
+      else toast.success('Attendance saved', summary);
       setLastMarked({ at: new Date().toISOString(), by: user?.name });
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
