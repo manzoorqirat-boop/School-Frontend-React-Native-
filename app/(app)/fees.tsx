@@ -9,6 +9,7 @@ import { useI18n } from '@/i18n';
 import { exportCSV } from '@/lib/export';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, SearchBar, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField } from '@/components/screen';
+import { useToast } from '@/components/toast';
 
 const STATUS_TINT: Record<string, string> = { pending: colors.warning, partial: colors.info, paid: colors.success, overdue: colors.danger, cancelled: colors.muted };
 const newIdemKey = () => `mob-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -17,6 +18,7 @@ export default function Fees() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +86,11 @@ export default function Fees() {
                 setDetail((d: any) => ({ ...d, ...res.invoice }));
                 setInvoices(prev => prev.map(x => x._id === detail._id ? { ...x, ...res.invoice } : x));
               }
-            } catch (e: any) { Alert.alert('Failed', e.message); }
+              toast.success(status === 'success' ? 'Cheque cleared' : 'Cheque bounced',
+                status === 'success'
+                  ? `₹${(payment.amount ?? 0).toLocaleString('en-IN')} credited to the invoice.`
+                  : 'The invoice was not credited.');
+            } catch (e: any) { toast.error('Failed', e.message); }
           } },
       ]);
   }
@@ -123,18 +129,21 @@ export default function Fees() {
         });
         setInvoices(prev => prev.map(x => x._id === pay._id ? (res.invoice ?? x) : x));
         setPay(null);
-        Alert.alert('Payment recorded',
+        toast.success('Payment recorded',
           payForm.method === 'cheque'
-            ? `Cheque recorded as pending (Receipt ${res.payment?.receiptNo ?? ''}). The invoice will be credited once you mark the cheque cleared.`
+            ? `Cheque pending · Receipt ${res.payment?.receiptNo ?? ''}. Credited once cleared.`
             : `Receipt ${res.payment?.receiptNo ?? ''}`);
-      } catch (e: any) { Alert.alert('Payment failed', e.message); }
+      } catch (e: any) { toast.error('Payment failed', e.message); }
       finally { setSaving(false); }
     };
+    // The server hard-rejects any amount over the outstanding balance, so a
+    // "record anyway" path here would always 400. Block it client-side with a
+    // clear message instead of letting the user commit to a doomed request.
     if (amt > bal) {
-      Alert.alert('Overpayment', `Amount exceeds balance of ₹${bal.toLocaleString('en-IN')}. Record anyway?`, [
-        { text: 'Cancel', style: 'cancel' }, { text: 'Record', onPress: proceed },
-      ]);
-    } else await proceed();
+      Alert.alert('Amount too high', `Amount exceeds the outstanding balance of ₹${bal.toLocaleString('en-IN')}. Enter the balance or less.`);
+      return;
+    }
+    await proceed();
   }
 
   // ── Discount ────────────────────────────────────────────────────────────
@@ -148,7 +157,8 @@ export default function Fees() {
       const updated = await API.post(`/api/invoices/${disc._id}/discount`, { discount: d, reason: discForm.reason });
       setInvoices(prev => prev.map(x => x._id === disc._id ? updated : x));
       setDisc(null);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Discount applied', d > 0 ? `−₹${d.toLocaleString('en-IN')} on ${updated.invoiceNo ?? 'invoice'}.` : 'Discount removed.');
+    } catch (e: any) { toast.error('Failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -167,9 +177,9 @@ export default function Fees() {
         installmentName: genForm.installment || undefined,
       });
       setGenOpen(false);
-      Alert.alert('Invoices generated', `Created ${res.created ?? 0}, skipped ${res.skipped ?? 0} (already existed).`);
+      toast.success('Invoices generated', `Created ${res.created ?? 0}, skipped ${res.skipped ?? 0} (already existed).`);
       load();
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+    } catch (e: any) { toast.error('Failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -177,7 +187,7 @@ export default function Fees() {
     try {
       await exportCSV('fees', ['Invoice', 'Student', 'Class', 'Total', 'Paid', 'Due', 'Status'],
         filtered.map(i => [i.invoiceNo, i.studentName, `${i.studentClass ?? ''}-${i.studentSection ?? ''}`, i.total ?? 0, i.amountPaid ?? 0, (i.total ?? 0) - (i.amountPaid ?? 0), i.status ?? 'pending']));
-    } catch (e: any) { Alert.alert('Export failed', e.message); }
+    } catch (e: any) { toast.error('Export failed', e.message); }
   }
 
   if (loading) return <Screen title={t('nav.fees', 'Fees')} colors={rt.gradient} onBack={() => router.back()}><Loading /></Screen>;
