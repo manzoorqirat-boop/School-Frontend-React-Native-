@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
+import { useToast } from '@/components/toast';
 
 const STATUS_TINT: Record<string, string> = { draft: colors.muted, active: colors.success, closed: colors.info };
 const ADMINISH = ['school_admin', 'principal', 'superadmin'];
@@ -17,6 +18,7 @@ export default function Polls() {
   const router = useRouter();
   const { user } = useAuth();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const canManage = ADMINISH.includes(user?.role ?? '');
 
@@ -33,7 +35,7 @@ export default function Polls() {
 
   const load = useCallback(async () => {
     try { const data = await API.get<any>('/api/polls'); setPolls(Array.isArray(data) ? data : data.items ?? []); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+    catch (e: any) { toast.error('Could not load polls', e.message); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -49,9 +51,9 @@ export default function Polls() {
     setSaving(true);
     try {
       await API.post(`/api/polls/${active._id}/vote`, { answers: payload });
-      Alert.alert('Thanks!', 'Your vote has been recorded.');
+      toast.success('Vote recorded', 'Thanks for responding.');
       loadResults(active);
-    } catch (e: any) { Alert.alert(e.message?.includes('already') ? 'Already voted' : 'Failed', e.message); }
+    } catch (e: any) { toast.error(e.message?.includes('already') ? 'Already voted' : 'Failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -84,7 +86,8 @@ export default function Polls() {
       });
       setPolls(prev => [created, ...prev]);
       setCreateOpen(false);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Poll published', form.title.trim());
+    } catch (e: any) { toast.error('Failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -93,14 +96,15 @@ export default function Polls() {
       const updated = await API.put(`/api/polls/${p._id}`, { ...p, status: 'closed' });
       setPolls(prev => prev.map(x => x._id === p._id ? updated : x));
       setActive(null);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Poll closed', 'No further votes will be accepted.');
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
   function confirmDelete(p: any) {
     Alert.alert('Delete poll', `Delete "${p.title}" and all its votes?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await API.del(`/api/polls/${p._id}`); setPolls(prev => prev.filter(x => x._id !== p._id)); setActive(null); }
-        catch (e: any) { Alert.alert('Failed', e.message); }
+        try { await API.del(`/api/polls/${p._id}`); setPolls(prev => prev.filter(x => x._id !== p._id)); setActive(null); toast.success('Poll deleted', `"${p.title}" removed.`); }
+        catch (e: any) { toast.error('Failed', e.message); }
       }},
     ]);
   }
