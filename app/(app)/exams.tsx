@@ -195,7 +195,20 @@ export default function Exams() {
         {!editing && (
           <>
             <Text style={styles.subHead}>Subjects · tap to include, set max marks</Text>
-            {subjects.length === 0 && <Text style={styles.hint}>No subjects configured for class {form.class}. Add them in web admin (Exam Config) first.</Text>}
+            {subjects.length === 0 && (
+              // This used to read "Add them in web admin (Exam Config) first",
+              // pointing at a screen that existed in neither app. It exists now,
+              // and it is in THIS app — so link to it rather than sending the
+              // user off to a different device.
+              <TouchableOpacity onPress={() => { setFormOpen(false); router.push('/(app)/exam-config'); }}
+                style={styles.hintLink}>
+                <Ionicons name="alert-circle" size={16} color={colors.warning} />
+                <Text style={styles.hintLinkText}>
+                  No subjects for class {form.class}. Tap to open Exam Config and add them.
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.warning} />
+              </TouchableOpacity>
+            )}
             {subjects.map(s => {
               const c = chosen[s._id] ?? { on: false, maxMarks: '100' };
               return (
@@ -246,5 +259,8 @@ const styles = StyleSheet.create({
   subRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   subToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, paddingVertical: 6 },
   subName: { ...font.body, color: colors.ink },
+  hintLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 11, paddingHorizontal: 10,
+    backgroundColor: colors.warning + '14', borderRadius: radius.md, marginBottom: spacing.sm, minHeight: 44 },
+  hintLinkText: { ...font.caption, color: colors.warning, flex: 1, textTransform: 'none', letterSpacing: 0, lineHeight: 16 },
   hint: { ...font.label, color: colors.muted, fontStyle: 'italic' },
 });
