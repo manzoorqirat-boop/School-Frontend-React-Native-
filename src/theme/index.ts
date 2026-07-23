@@ -54,6 +54,7 @@ export const colors = {
     'report-cards':    '#6366F1',   // indigo soft
     timetable:         '#0284C7',   // blue    — scheduling
     'my-classes':      '#0369A1',   // blue deep
+    reports:           '#7E22CE',   // purple  — analytics
     users:             '#BE123C',   // rose    — people admin
     privileges:        '#9F1239',   // rose deep — sensitive
     polls:             '#C2410C',   // orange  — engagement
