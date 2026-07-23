@@ -8,6 +8,7 @@ import { useSchoolConfig } from '@/lib/schoolConfig';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal } from '@/components/screen';
+import { useToast } from '@/components/toast';
 
 const ADMINISH = ['school_admin', 'principal', 'superadmin'];
 
@@ -18,6 +19,7 @@ export default function MyClasses() {
   const { user } = useAuth();
   const { classes, sections } = useSchoolConfig();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const isAdmin = ADMINISH.includes(user?.role ?? '');
 
@@ -32,7 +34,7 @@ export default function MyClasses() {
     try {
       const data = await API.get(isAdmin ? '/api/class-teachers' : '/api/class-teachers/my-classes');
       setItems(data.items ?? []);
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { toast.error('Could not load assignments', e.message); }
     finally { setLoading(false); }
   }, [isAdmin]);
   useEffect(() => { load(); }, [load]);
@@ -55,7 +57,8 @@ export default function MyClasses() {
       });
       setItems(prev => [created, ...prev]);
       setFormOpen(false);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success('Teacher assigned', `${form.class}-${form.section} assigned.`);
+    } catch (e: any) { toast.error('Failed', e.message); }
     finally { setSaving(false); }
   }
 
@@ -63,8 +66,8 @@ export default function MyClasses() {
     Alert.alert('Remove assignment', `Remove this assignment? The teacher will lose attendance-marking rights for ${a.class}-${a.section}.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: async () => {
-        try { await API.del(`/api/class-teachers/${a._id}`); setItems(prev => prev.filter(x => x._id !== a._id)); }
-        catch (e: any) { Alert.alert('Failed', e.message); }
+        try { await API.del(`/api/class-teachers/${a._id}`); setItems(prev => prev.filter(x => x._id !== a._id)); toast.success('Assignment removed', `${a.class}-${a.section}`); }
+        catch (e: any) { toast.error('Failed', e.message); }
       }},
     ]);
   }
