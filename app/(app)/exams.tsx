@@ -9,6 +9,7 @@ import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, FormModal, Field, ChipPicker, DateField } from '@/components/screen';
+import { useToast } from '@/components/toast';
 
 const TYPES = ['unit_test', 'periodic', 'term', 'half_yearly', 'annual', 'custom'];
 const STATUS_TINT: Record<string, string> = { draft: colors.muted, published: colors.success };
@@ -18,6 +19,7 @@ export default function Exams() {
   const { user } = useAuth();
   const { classes, sectionsWithBlank } = useSchoolConfig();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
 
   const [exams, setExams] = useState<any[]>([]);
@@ -35,7 +37,7 @@ export default function Exams() {
 
   const load = useCallback(async () => {
     try { const data = await API.get('/api/exams'); setExams(data.items ?? []); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+    catch (e: any) { toast.error('Could not load exams', e.message); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -51,14 +53,15 @@ export default function Exams() {
       const updated = await API.post(`/api/exams/${exam._id}/${publish ? 'publish' : 'unpublish'}`);
       setExams(prev => prev.map(x => x._id === exam._id ? updated : x));
       setView(null);
-    } catch (e: any) { Alert.alert('Failed', e.message); }
+      toast.success(publish ? 'Exam published' : 'Exam unpublished', publish ? 'Results are now visible to students & parents.' : 'Results are hidden again.');
+    } catch (e: any) { toast.error('Failed', e.message); }
   }
   function confirmDelete(exam: any) {
     Alert.alert('Delete exam', `Delete "${exam.name}" and all its results? This cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await API.del(`/api/exams/${exam._id}`); setExams(prev => prev.filter(x => x._id !== exam._id)); setView(null); }
-        catch (e: any) { Alert.alert('Failed', e.message); }
+        try { await API.del(`/api/exams/${exam._id}`); setExams(prev => prev.filter(x => x._id !== exam._id)); setView(null); toast.success('Exam deleted', `"${exam.name}" and its results were removed.`); }
+        catch (e: any) { toast.error('Failed', e.message); }
       }},
     ]);
   }
@@ -127,7 +130,8 @@ export default function Exams() {
         setExams(prev => [created, ...prev]);
       }
       setFormOpen(false);
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+      toast.success(editing ? 'Exam updated' : 'Exam created', form.name.trim());
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
