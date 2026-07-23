@@ -9,6 +9,7 @@ import { can } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ListItem, EmptyState, Loading, Field, ChipPicker, FormModal, DateField, AcademicYearPicker } from '@/components/screen';
+import { useToast } from '@/components/toast';
 
 const FREQ = ['annual', 'monthly', 'quarterly', 'one_time'];
 
@@ -20,6 +21,7 @@ export default function FeeStructures() {
   const { user, school } = useAuth();
   const { classes, sectionsWithBlank } = useSchoolConfig();
   const { t } = useI18n();
+  const toast = useToast();
   const rt = themeForRole(user?.role);
   const [structures, setStructures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ export default function FeeStructures() {
 
   const load = useCallback(async () => {
     try { const data = await API.get<any[]>('/api/fee-structures'); setStructures(Array.isArray(data) ? data : (data as any).items ?? []); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+    catch (e: any) { toast.error('Could not load fee structures', e.message); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -71,7 +73,8 @@ export default function FeeStructures() {
       const saved = editId ? await API.put(`/api/fee-structures/${editId}`, body) : await API.post('/api/fee-structures', body);
       setStructures(prev => editId ? prev.map(x => x._id === editId ? saved : x) : [saved, ...prev]);
       setOpen(false);
-    } catch (e: any) { Alert.alert('Save failed', e.message); }
+      toast.success(editId ? 'Structure updated' : 'Structure created', meta.name.trim());
+    } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
 
