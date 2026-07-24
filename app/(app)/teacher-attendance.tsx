@@ -38,6 +38,10 @@ export default function TeacherAttendance() {
 
   const [date, setDate] = useState(today());
   const [roster, setRoster] = useState<any[] | null>(null);
+  // True only once the user actually changes something. `marks` cannot serve
+  // as the signal: loadRoster seeds it from the saved attendance, so it is
+  // populated the moment the roster renders.
+  const [touched, setTouched] = useState(false);
   const [academicYear, setAcademicYear] = useState<string>('');
   const [lastMarked, setLastMarked] = useState<{ at?: string; by?: string }>({});
   const [marks, setMarks] = useState<Record<string, string>>({});
@@ -59,7 +63,7 @@ export default function TeacherAttendance() {
   // state until Save, so switching class/section/date/mode silently threw away
   // a whole class's attendance with no warning.
   function resetRoster(): boolean {
-    if (roster && Object.keys(marks).length > 0) {
+    if (roster && touched) {
       toast.error('Unsaved attendance', 'Save your marks first, or reload to discard them.');
       return false;
     }
@@ -85,12 +89,13 @@ export default function TeacherAttendance() {
             checkOut: r.attendance.checkOut ? String(r.attendance.checkOut).slice(11, 16) : '',
           };
       });
-      setMarks(im); setNotes(ino);
+      setMarks(im); setNotes(ino); setTouched(false);
     } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setLoading(false); }
   }, [date, school?.academicYear]);
 
   function setAll(status: string) {
+    setTouched(true);
     if (!roster) return;
     const next: Record<string, string> = {};
     roster.forEach(r => { next[r.teacher._id] = status; });
@@ -130,6 +135,7 @@ export default function TeacherAttendance() {
       if (errCount) toast.warning('Saved with issues', `${summary}\n${errCount} failed`);
       else toast.success('Attendance saved', summary);
       setLastMarked({ at: new Date().toISOString(), by: user?.name });
+      setTouched(false);   // persisted — the leave guard must stand down
     } catch (e: any) { toast.error('Save failed', e.message); }
     finally { setSaving(false); }
   }
@@ -200,7 +206,7 @@ export default function TeacherAttendance() {
                       const on = marks[id] === s.key;
                       return (
                         <TouchableOpacity key={s.key} disabled={!canMark}
-                          onPress={() => setMarks({ ...marks, [id]: s.key })}
+                          onPress={() => { setTouched(true); setMarks({ ...marks, [id]: s.key }); }}
                           style={[styles.sBtn, on && { backgroundColor: s.tint }]}>
                           <Text style={[styles.sBtnText, on && { color: '#fff' }]}>{s.label}</Text>
                         </TouchableOpacity>
