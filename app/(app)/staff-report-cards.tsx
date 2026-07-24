@@ -10,6 +10,8 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, SearchBar, EmptyState, Loading } from '@/components/screen';
 import { Card } from '@/components/ui';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { exportHTML, htmlTable } from '@/lib/export';
 import { useToast } from '@/components/toast';
 
@@ -97,6 +99,27 @@ export default function StaffReportCards() {
     } finally { setLoading(false); }
   }
 
+  // Native: download to the cache dir with the bearer token attached, then hand
+  // the file to the OS share sheet. No Blob/document here — those are web APIs
+  // and this repo has no react-native-web.
+  async function downloadPdf() {
+    if (!picked) return;
+    try {
+      const token = await API.token();
+      const qs = academicYear ? `?academicYear=${encodeURIComponent(academicYear)}` : '';
+      const name = `report-card-${picked.firstName ?? 'student'}.pdf`;
+      const target = FileSystem.cacheDirectory + name;
+      const res = await FileSystem.downloadAsync(
+        `${API.base}/api/report-cards/student/${picked._id}/pdf${qs}`,
+        target,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+      if (res.status !== 200) throw new Error(`Server returned ${res.status}`);
+      if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device.');
+      await Sharing.shareAsync(res.uri, { mimeType: 'application/pdf', dialogTitle: name, UTI: 'com.adobe.pdf' });
+    } catch (e: any) { toast.error('PDF failed', e.message); }
+  }
+
   async function doExport() {
     if (!report) return;
     const st = report.student ?? {};
@@ -156,9 +179,14 @@ export default function StaffReportCards() {
         subtitle={`Class ${st.class ?? ''}${st.section ? '-' + st.section : ''}${report?.academicYear ? ' \u00b7 ' + report.academicYear : ''}`}
         colors={rt.gradient} onBack={() => { setPicked(null); setReport(null); }}
         right={report ? (
-          <TouchableOpacity onPress={doExport} style={styles.iconBtn}>
-            <Ionicons name="download-outline" size={20} color={colors.ink} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity onPress={downloadPdf} style={styles.iconBtn}>
+              <Ionicons name="document-text-outline" size={20} color={colors.ink} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={doExport} style={styles.iconBtn}>
+              <Ionicons name="download-outline" size={20} color={colors.ink} />
+            </TouchableOpacity>
+          </View>
         ) : undefined}
         scroll={false}>
         <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl }}>
