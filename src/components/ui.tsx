@@ -80,9 +80,27 @@ export function GradientButton({
   label: string; onPress?: () => void; loading?: boolean;
   colors?: [string, string]; disabled?: boolean;
 }) {
+  // `themeForRole().gradient` is a back-compat shim that returns
+  // [surface, surface] — white on white. It exists so the flat headers keep
+  // working, but screens also pass it straight into this button, which then
+  // rendered a WHITE button with WHITE text: an empty grey rectangle where
+  // "Load Roster" / "Save Attendance" should be. Ten buttons across six
+  // screens were invisible.
+  //
+  // Fix it here rather than at ten call sites: a button that cannot be seen is
+  // never what the caller wanted, so fall back to the brand colours whenever
+  // the supplied gradient has no contrast against the page.
+  const invisible =
+    g[0]?.toLowerCase() === g[1]?.toLowerCase() &&
+    (g[0]?.toLowerCase() === colors.surface.toLowerCase() ||
+     g[0]?.toLowerCase() === colors.bg.toLowerCase() ||
+     g[0]?.toLowerCase() === '#fff' ||
+     g[0]?.toLowerCase() === '#ffffff');
+  const fill: [string, string] = invisible ? [colors.primary, colors.primaryDark] : g;
+
   return (
     <Pressable onPress={onPress} disabled={disabled || loading} style={{ opacity: disabled ? 0.6 : 1 }}>
-      <LinearGradient colors={g} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+      <LinearGradient colors={fill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={[styles.btn, shadow.float]}>
         {loading ? <ActivityIndicator color="#fff" />
                  : <Text style={styles.btnText}>{label}</Text>}
