@@ -44,7 +44,7 @@ export default function Fees() {
 
   const load = useCallback(async () => {
     try { const data = await API.get('/api/invoices?limit=500'); setInvoices(data.items ?? []); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+    catch (e: any) { toast.error('Could not load', e.message); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -109,15 +109,15 @@ export default function Fees() {
   async function collect() {
     const amt = parseFloat(payForm.amount);
     const bal = (pay.total ?? 0) - (pay.amountPaid ?? 0);
-    if (!amt || amt <= 0) { Alert.alert('Invalid', 'Enter a valid amount.'); return; }
+    if (!amt || amt <= 0) { toast.error('Invalid', 'Enter a valid amount.'); return; }
     if (payForm.method === 'cheque' && (!payForm.chequeNo?.trim() || !payForm.chequeBank?.trim())) {
-      Alert.alert('Missing', 'Cheque number and bank are required for cheque payments.'); return;
+      toast.error('Missing', 'Cheque number and bank are required for cheque payments.'); return;
     }
     if (payForm.method === 'cheque' && payForm.chequeDate && !/^\d{4}-\d{2}-\d{2}$/.test(payForm.chequeDate)) {
-      Alert.alert('Invalid date', 'Cheque date must be YYYY-MM-DD.'); return;
+      toast.error('Invalid date', 'Cheque date must be YYYY-MM-DD.'); return;
     }
     if (['upi', 'card', 'bank_transfer'].includes(payForm.method) && !payForm.transactionRef?.trim()) {
-      Alert.alert('Missing', 'Transaction reference is required for this method.'); return;
+      toast.error('Missing', 'Transaction reference is required for this method.'); return;
     }
     const proceed = async () => {
       setSaving(true);
@@ -142,7 +142,7 @@ export default function Fees() {
     // "record anyway" path here would always 400. Block it client-side with a
     // clear message instead of letting the user commit to a doomed request.
     if (amt > bal) {
-      Alert.alert('Amount too high', `Amount exceeds the outstanding balance of ₹${bal.toLocaleString('en-IN')}. Enter the balance or less.`);
+      toast.error('Amount too high', `Amount exceeds the outstanding balance of ₹${bal.toLocaleString('en-IN')}. Enter the balance or less.`);
       return;
     }
     await proceed();
@@ -152,8 +152,8 @@ export default function Fees() {
   function openDiscount(inv: any) { setDetail(null); setDisc(inv); setDiscForm({ discount: String(inv.discount ?? ''), reason: inv.discountReason ?? '' }); }
   async function applyDiscount() {
     const d = parseFloat(discForm.discount);
-    if (isNaN(d) || d < 0) { Alert.alert('Invalid', 'Enter a valid discount amount (0 or more).'); return; }
-    if (d > (disc.subtotal ?? 0)) { Alert.alert('Invalid', 'Discount cannot exceed the subtotal.'); return; }
+    if (isNaN(d) || d < 0) { toast.error('Invalid', 'Enter a valid discount amount (0 or more).'); return; }
+    if (d > (disc.subtotal ?? 0)) { toast.error('Invalid', 'Discount cannot exceed the subtotal.'); return; }
     setSaving(true);
     try {
       const updated = await API.post(`/api/invoices/${disc._id}/discount`, { discount: d, reason: discForm.reason });
@@ -168,10 +168,10 @@ export default function Fees() {
   async function openGenerate() {
     setGenOpen(true); setGenForm({});
     try { const data = await API.get('/api/fee-structures'); setStructures(Array.isArray(data) ? data : data.items ?? []); }
-    catch (e: any) { Alert.alert('Error', e.message); }
+    catch (e: any) { toast.error('Could not load', e.message); }
   }
   async function generate() {
-    if (!genForm.structureId) { Alert.alert('Missing', 'Select a fee structure.'); return; }
+    if (!genForm.structureId) { toast.error('Missing', 'Select a fee structure.'); return; }
     setSaving(true);
     try {
       const res = await API.post('/api/invoices/generate', {
