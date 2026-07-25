@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { can } from '@/lib/privileges';
 import { useSchoolConfig } from '@/lib/schoolConfig';
 import { colors, spacing, font, radius, moduleColor } from '@/theme';
-import { Screen, EmptyState, Loading, Field, ChipPicker, DateField, FormModal } from '@/components/screen';
+import { Screen, EmptyState, SkeletonList, Field, ChipPicker, DateField, FormModal } from '@/components/screen';
 import { useToast } from '@/components/toast';
 
 const PRIORITY_TINT: Record<string, string> = {
@@ -167,8 +167,6 @@ export default function Notices() {
     return null;
   }
 
-  if (loading) return <Loading />;
-
   return (
     <Screen
       title="Notice Board"
@@ -180,6 +178,7 @@ export default function Notices() {
         </TouchableOpacity>
       ) : undefined}
     >
+      {loading ? <SkeletonList rows={4} height={92} /> : (
       <FlatList
         data={items}
         keyExtractor={(n: any) => n._id}
@@ -188,7 +187,9 @@ export default function Notices() {
           <EmptyState
             tint={tint}
             icon="megaphone"
-            text={canManage ? 'No notices yet. Use + to post one.' : 'No notices right now.'}
+            text={canManage ? 'No notices yet.' : 'No notices right now.'}
+            actionLabel={canManage ? 'Post the first notice' : undefined}
+            onAction={canManage ? openCreate : undefined}
           />
         }
         renderItem={({ item: n }) => {
@@ -241,6 +242,7 @@ export default function Notices() {
           );
         }}
       />
+      )}
 
       <FormModal
         visible={open}
