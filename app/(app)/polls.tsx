@@ -69,7 +69,7 @@ export default function Polls() {
     const payload = (active.questions ?? [])
       .filter((q: any) => answers[q._id])
       .map((q: any) => ({ questionId: q._id, optionId: answers[q._id] }));
-    if (payload.length !== (active.questions ?? []).length) { Alert.alert('Incomplete', 'Answer every question before submitting.'); return; }
+    if (payload.length !== (active.questions ?? []).length) { toast.error('Incomplete', 'Answer every question before submitting.'); return; }
     setSaving(true);
     try {
       await API.post(`/api/polls/${active._id}/vote`, { answers: payload });
@@ -102,13 +102,13 @@ export default function Polls() {
   }
 
   async function create() {
-    if (!form.title?.trim()) { Alert.alert('Missing', 'Poll title is required.'); return; }
+    if (!form.title?.trim()) { toast.error('Missing', 'Poll title is required.'); return; }
     const cleanQs = qs
       .map(q => ({ text: q.text.trim(), options: q.options.map(o => o.trim()).filter(Boolean).map(o => ({ text: o })) }))
       .filter(q => q.text);
-    if (!cleanQs.length) { Alert.alert('Missing', 'Add at least one question.'); return; }
+    if (!cleanQs.length) { toast.error('Missing', 'Add at least one question.'); return; }
     const short = cleanQs.find(q => q.options.length < 2);
-    if (short) { Alert.alert('Invalid', `"${short.text}" needs at least 2 options.`); return; }
+    if (short) { toast.error('Invalid', `"${short.text}" needs at least 2 options.`); return; }
     setSaving(true);
     try {
       const created = await API.post('/api/polls', {
