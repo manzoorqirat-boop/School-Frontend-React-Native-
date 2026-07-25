@@ -7,11 +7,12 @@ import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n';
 import { API } from '@/lib/api';
 import { themeForRole, colors, spacing, font, radius } from '@/theme';
-import { GradientHeader, StatTile, ActionCard } from '@/components/ui';
+import { StatTile, ActionCard } from '@/components/ui';
+import { ColophonPanel } from '@/components/colophon';
 
 // Parent + student portal.
 export default function Portal() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
@@ -25,6 +26,15 @@ export default function Portal() {
   // only two roles that land here — parent and student.
   const [pendingPolls, setPendingPolls] = useState<any[]>([]);
   const [notices, setNotices] = useState<any[]>([]);
+
+  /* The parent's version of the day, in the order a parent cares about:
+     what is owed, what is new, what is waiting on them. Same signature strip
+     as the staff dashboard, different facts. */
+  const ledger: string[] = [];
+  if (feesDue != null && feesDue > 0) ledger.push(`₹${Number(feesDue).toLocaleString('en-IN')} due`);
+  if (notices.length) ledger.push(`${notices.length} ${notices.length === 1 ? 'notice' : 'notices'}`);
+  if (pendingPolls.length) ledger.push(`${pendingPolls.length} ${pendingPolls.length === 1 ? 'poll' : 'polls'} to answer`);
+  const ledgerLine = ledger.length ? ledger.join('  ·  ') : 'Nothing needs you right now';
 
   const load = useCallback(async () => {
     try {
@@ -58,16 +68,14 @@ export default function Portal() {
     <ScrollView style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={rt.accent} />}>
-      <GradientHeader colors={rt.gradient} subtitle={rt.label}
-        title={`Hi, ${(user?.name ?? 'there').split(' ')[0]} 👋`}
-        right={<View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity onPress={() => router.push('/(app)/settings')} style={styles.avatar}>
-            <Ionicons name="settings-outline" size={20} color={colors.ink} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={signOut} style={styles.avatar}>
-            <Text style={styles.avatarText}>{(user?.name ?? 'U').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}</Text>
-          </TouchableOpacity>
-        </View>} />
+      <ColophonPanel
+        eyebrow={rt.label}
+        eyebrowDot={rt.accent}
+        name={(user?.name ?? 'there').split(' ')[0]}
+        ledgerLine={ledgerLine}
+        initials={(user?.name ?? 'U').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
+        onPressAvatar={() => router.push('/(app)/settings')}
+      />
       {notices.length > 0 && (
         <TouchableOpacity style={styles.noticeBanner} onPress={() => router.push('/(app)/notices')}>
           <Ionicons name="megaphone" size={20} color={colors.indigo} />
