@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Modal, KeyboardAvoidingView, Platform, ViewStyle, Dimensions,
+  Animated, AccessibilityInfo,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,8 +98,13 @@ export function Avatar({ name, tint = colors.primary, size = 42 }: { name?: stri
 }
 
 // ── Empty / loading / error states ──────────────────────────────────────────
-export function EmptyState({ icon = 'file-tray', text, tint }: {
+export function EmptyState({ icon = 'file-tray', text, tint, actionLabel, onAction }: {
   icon?: keyof typeof Ionicons.glyphMap; text: string; tint?: string;
+  /** Optional call to action. An empty screen should be an invitation to act,
+   *  not a dead end — "No invoices yet" with nothing to press leaves the
+   *  reader to hunt for the + button they were meant to notice. */
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   // A softly tinted disc makes an empty screen read as "nothing here yet"
   // rather than "something failed" — grey-on-grey looks like an error.
@@ -109,6 +115,48 @@ export function EmptyState({ icon = 'file-tray', text, tint }: {
         <Ionicons name={icon} size={30} color={c} />
       </View>
       <Text style={styles.emptyText}>{text}</Text>
+      {actionLabel && onAction ? (
+        <TouchableOpacity style={[styles.emptyBtn, { borderColor: c + '55' }]} onPress={onAction} activeOpacity={0.8}>
+          <Text style={[styles.emptyBtnText, { color: c }]}>{actionLabel}</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * Placeholder rows for a list that is still loading.
+ *
+ * Preferred over <Loading /> on any screen that already knows its shape:
+ * a full-screen spinner blanks the header and the frame jumps when content
+ * arrives. Holding the layout still makes the app feel faster without being
+ * faster.
+ */
+export function SkeletonList({ rows = 5, height = 64 }: { rows?: number; height?: number }) {
+  const pulse = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    let alive = true;
+    let loop: Animated.CompositeAnimation | null = null;
+    AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
+      if (!alive) return;
+      // A pulsing block is exactly the kind of motion reduced-motion users are
+      // asking to be spared. Hold it at a flat mid-opacity instead.
+      if (reduced) { pulse.setValue(0.5); return; }
+      loop = Animated.loop(Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.75, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+      ]));
+      loop.start();
+    }).catch(() => pulse.setValue(0.5));
+    return () => { alive = false; loop?.stop(); };
+  }, [pulse]);
+
+  return (
+    <View style={{ gap: spacing.sm, padding: spacing.lg }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Animated.View key={i} style={[styles.skeleton, { height, opacity: pulse }]} />
+      ))}
     </View>
   );
 }
@@ -430,6 +478,12 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
   emptyDisc: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyText: { ...font.body, color: colors.muted },
+  emptyBtn: {
+    marginTop: spacing.md, paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
+    borderRadius: radius.pill, borderWidth: 1,
+  },
+  emptyBtnText: { ...font.body, fontWeight: '700' },
+  skeleton: { backgroundColor: colors.surfaceAlt, borderRadius: radius.lg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
 
   fieldDisabled: { backgroundColor: colors.surfaceAlt, color: colors.muted },
