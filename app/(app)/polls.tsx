@@ -27,6 +27,11 @@ export default function Polls() {
   const [active, setActive] = useState<any>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [results, setResults] = useState<any>(null);
+  // Was MISSING while the JSX below read `detail?.hasVoted` unconditionally, so
+  // this screen threw "ReferenceError: detail is not defined" on every render —
+  // the same defect portal.tsx had with pendingPolls. The web build has always
+  // carried this state; the mobile copy was left behind.
+  const [detail, setDetail] = useState<any>(null);
   const [saving, setSaving] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -41,7 +46,24 @@ export default function Polls() {
   useEffect(() => { load(); }, [load]);
 
   // ── Vote ────────────────────────────────────────────────────────────────
-  function openPoll(p: any) { setActive(p); setAnswers({}); setResults(null); }
+  // The list only carries summary fields. Fetch the detail so we know whether
+  // THIS user has voted, what they picked, and whether they may see results —
+  // none of which the list can tell us. Without it an already-voted parent is
+  // shown a blank ballot and only finds out when the server rejects the submit.
+  async function openPoll(p: any) {
+    setActive(p); setAnswers({}); setResults(null); setDetail(null);
+    try {
+      const d = await API.get<any>(`/api/polls/${p._id}`);
+      setDetail(d);
+      if (d?.results) setResults(d.results);
+      // Pre-select their previous choices so the ballot reflects reality.
+      const prior: Record<string, string> = {};
+      (d?.myVote?.answers ?? []).forEach((a: any) => { prior[a.questionId] = a.optionId; });
+      if (Object.keys(prior).length) setAnswers(prior);
+    } catch (e: any) {
+      toast.error('Could not open poll', e.message);
+    }
+  }
 
   async function vote() {
     const payload = (active.questions ?? [])
