@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { usePushNavigation } from '@/lib/push';
 
 // Layout for the (app) route group.
 //
@@ -26,5 +27,9 @@ import { Stack } from 'expo-router';
 // stack for the group — mirroring app/(auth)/_layout.tsx, which was always
 // correct.
 export default function AppLayout() {
+  // Tapping a notification opens what it is about. Mounted here so it covers
+  // every signed-in screen and survives navigation between them.
+  usePushNavigation();
+
   return <Stack screenOptions={{ headerShown: false }} />;
 }
