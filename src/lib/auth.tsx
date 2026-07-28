@@ -60,6 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await API.setSession(token, res.user, res.school, res.refreshToken);
     setUser(res.user);
     setSchool(res.school ?? null);
+
+    // Fire and forget. registerForPush never throws and never blocks — a denied
+    // permission or an offline device must not stand between someone and their
+    // dashboard.
+    void registerForPush();
   }, []);
 
   const signOut = useCallback(async () => {
@@ -70,6 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // allDevices is set), so it revoked the short-lived ACCESS token and left
     // the refresh token valid in the database. Anyone who recovered it could
     // still mint new access tokens; sign-out was not a real sign-out.
+    // Retire this device BEFORE the session is torn down, while the access
+    // token is still valid — otherwise the unregister call is rejected and the
+    // next person to sign in on this phone inherits the previous user's
+    // notifications.
+    await unregisterPush();
+
     const refreshToken = await API.refreshToken();
 
     // Clear local state FIRST, then tell the server.
