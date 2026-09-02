@@ -37,6 +37,17 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+          # expo-github-action installs eas-cli itself before your own
+          # `npm install` step runs, using whichever package manager this
+          # input names (default: yarn). If the runner's `yarn` resolves to
+          # Yarn Berry, the action's internal `yarn add eas-cli@<version>`
+          # fails with "Usage Error: No project found" — Berry's `add`
+          # requires an existing yarn project in that directory, which the
+          # action's own temp install dir isn't. npm's global install has no
+          # such requirement, so this sidesteps the bug regardless of what
+          # yarn version happens to be on the runner.
+          # https://github.com/expo/eas-cli/issues/2930
+          packager: npm
 
       - name: Install dependencies
         run: npm install
