@@ -28,6 +28,7 @@ export default function Settings() {
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState<any>({});
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function changePassword() {
     if (!pw.oldPassword || !pw.newPassword) { Alert.alert('Missing', 'Both fields are required.'); return; }
@@ -41,6 +42,35 @@ export default function Settings() {
       Alert.alert('Done', 'Password changed. You may need to sign in again.');
     } catch (e: any) { Alert.alert('Failed', e.message); }
     finally { setSaving(false); }
+  }
+
+  // Records a reviewable request rather than deleting on the spot — academic,
+  // attendance and fee records tied to this account carry their own
+  // retention obligations, so a school admin actions this rather than the
+  // client. See AuthController.RequestAccountDeletion for the full reasoning.
+  function requestDeletion() {
+    Alert.alert(
+      'Delete my account',
+      'This sends your school a request to delete your account and personal data. Records the school must keep for its own legal or academic obligations may be retained. This cannot be undone once actioned — continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Request deletion', style: 'destructive', onPress: async () => {
+            setDeleting(true);
+            try {
+              await API.post('/api/auth/delete-account-request', {});
+              Alert.alert('Request sent', 'Your school has been notified. You\u2019ll be signed out now.', [
+                { text: 'OK', onPress: signOut },
+              ]);
+            } catch (e: any) {
+              Alert.alert('Could not send request', e.message ?? 'Please try again, or contact your school directly.');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -84,6 +114,12 @@ export default function Settings() {
           { text: 'Cancel', style: 'cancel' },
           { text: 'Sign out', style: 'destructive', onPress: signOut },
         ])} />
+
+      {/* Privacy */}
+      <Text style={styles.section}>{t('settings.privacy', 'Privacy')}</Text>
+      <Row icon="document-text" label={t('settings.privacyPolicy', 'Privacy Policy')} onPress={() => router.push('/privacy-policy')} />
+      <Row icon="trash" label={deleting ? 'Sending request…' : t('settings.deleteAccount', 'Delete my account')}
+        tint={colors.danger} onPress={deleting ? undefined : requestDeletion} />
 
       <Text style={styles.version}>QMSoft School · v1.0.0</Text>
 
