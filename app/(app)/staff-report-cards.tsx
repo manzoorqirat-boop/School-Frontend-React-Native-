@@ -10,7 +10,8 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, SearchBar, EmptyState, Loading } from '@/components/screen';
 import { Card } from '@/components/ui';
-import * as FileSystem from 'expo-file-system';
+// See src/lib/export.ts for why this imports /legacy, not the package root.
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { exportHTML, htmlTable, escapeHtml } from '@/lib/export';
 import { useToast } from '@/components/toast';
