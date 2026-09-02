@@ -20,7 +20,13 @@ import { API } from './api';
 // user is deep in fee collection.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    // Replaces the old single shouldShowAlert flag: shouldShowBanner is the
+    // heads-up banner while the app is foregrounded, shouldShowList is
+    // whether it's also recorded in the notification center/shade. We want
+    // both — a notice arriving mid-task should be visible immediately AND
+    // still be there if the user swipes it away before reading it.
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
