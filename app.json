@@ -1,45 +1,56 @@
 {
   "expo": {
-    "name": "QMSoft School",
-    "slug": "qmschool",
-    "scheme": "qmschool",
+    "name": "Ghartak",
+    "slug": "ghartak",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "icon": "./assets/images/icon.png",
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "backgroundColor": "#6D3CF0",
-      "resizeMode": "contain"
-    },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.qmsofts.school"
+      "bundleIdentifier": "com.qmsofts.ghartak"
     },
     "android": {
-      "package": "com.qmsofts.school",
-      "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#6D3CF0"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B72B9"
       },
-      "edgeToEdgeEnabled": true,
-      "permissions": [
-        "android.permission.POST_NOTIFICATIONS"
-      ]
+      "package": "com.qmsofts.ghartak",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router",
-      "expo-secure-store",
-      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Ghartak to use your location to find sellers who deliver to your area."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "backgroundColor": "#0B72B9",
+          "imageWidth": 200
+        }
+      ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/adaptive-icon.png",
-          "color": "#6D3CF0"
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#0B72B9"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Ghartak to access your photos to add a product image.",
+          "cameraPermission": "Allow Ghartak to use your camera to take a product photo.",
+          "microphonePermission": false
         }
       ],
       [
@@ -49,22 +60,19 @@
             "compileSdkVersion": 36,
             "targetSdkVersion": 36,
             "buildToolsVersion": "36.0.0"
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
           }
         }
       ]
     ],
     "extra": {
-      "apiBase": "https://schoolnet-production-fedc.up.railway.app",
+      "apiBaseUrl": "https://ghartakbackend.qmsofts.com/api",
+      "privacyPolicyUrl": "https://ghartak.qmsofts.com/privacy.html",
       "eas": {
-        "projectId": "64bbf8cb-25b7-4727-b1bb-fb09e08e2b95"
+        "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
       }
-    },
-    "owner": "schooldotnet",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "notification": {
-      "iosDisplayInForeground": true
     }
   }
 }
