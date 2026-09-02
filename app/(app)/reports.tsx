@@ -10,6 +10,7 @@ import { useI18n } from '@/i18n';
 import { colors, spacing, font, radius, themeForRole, moduleColor } from '@/theme';
 import { Screen, ChipPicker, EmptyState, Loading, DateField } from '@/components/screen';
 import { Card, GradientButton } from '@/components/ui';
+import { Donut, ProgressRing, TrendChart, BarChart } from '@/components/charts';
 import { exportCSV, exportHTML, htmlTable } from '@/lib/export';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -177,16 +178,16 @@ function AttendanceReports({ classes, sections, accent }: { classes: string[]; s
       {today && (
         <Card>
           <Text style={styles.cardTitle}>Today · school-wide</Text>
-          <View style={styles.kpiRow}>
-            <Kpi label="Present" value={today.present} tint={colors.emerald} />
-            <Kpi label="Absent" value={today.absent} tint={colors.danger} />
-            <Kpi label="Late" value={today.late} tint={colors.amber} />
-            <Kpi label="Leave" value={today.leave} tint={colors.sky} />
-          </View>
-          <View style={styles.pctBar}>
-            <Text style={styles.pctLabel}>{today.marked} marked</Text>
-            <Text style={[styles.pctBig, { color: pctTint(today.percentage ?? 0) }]}>{today.percentage ?? 0}%</Text>
-          </View>
+          <Donut
+            centerLabel={`${today.percentage ?? 0}%`}
+            centerSub={`${today.marked ?? 0} marked`}
+            data={[
+              { label: 'Present', value: today.present ?? 0, color: colors.emerald },
+              { label: 'Absent', value: today.absent ?? 0, color: colors.danger },
+              { label: 'Late', value: today.late ?? 0, color: colors.amber },
+              { label: 'Leave', value: today.leave ?? 0, color: colors.sky },
+            ]}
+          />
         </Card>
       )}
 
@@ -241,15 +242,10 @@ function AttendanceReports({ classes, sections, accent }: { classes: string[]; s
       {!loading && trends && trends.length > 0 && (
         <Card>
           <Text style={styles.cardTitle}>Daily trend</Text>
-          {trends.map((d, i) => (
-            <View key={i} style={styles.trendRow}>
-              <Text style={styles.trendDate}>{String(d.date).slice(0, 10)}</Text>
-              <View style={styles.barTrack}>
-                <View style={[styles.barFill, { width: `${Math.max(2, d.percentage ?? 0)}%`, backgroundColor: pctTint(d.percentage ?? 0) }]} />
-              </View>
-              <Text style={[styles.trendPct, { color: pctTint(d.percentage ?? 0) }]}>{d.percentage ?? 0}%</Text>
-            </View>
-          ))}
+          <TrendChart
+            data={trends.map(d => ({ label: String(d.date).slice(5, 10), value: d.percentage ?? 0 }))}
+            color={accent}
+          />
         </Card>
       )}
 
@@ -257,15 +253,11 @@ function AttendanceReports({ classes, sections, accent }: { classes: string[]; s
       {!loading && periods && periods.length > 0 && (
         <Card>
           <Text style={styles.cardTitle}>Period breakdown</Text>
-          {periods.map((p, i) => (
-            <View key={i} style={styles.trendRow}>
-              <Text style={styles.trendDate}>Period {p.period}</Text>
-              <View style={styles.barTrack}>
-                <View style={[styles.barFill, { width: `${Math.max(2, p.percentage ?? 0)}%`, backgroundColor: pctTint(p.percentage ?? 0) }]} />
-              </View>
-              <Text style={[styles.trendPct, { color: pctTint(p.percentage ?? 0) }]}>{p.percentage ?? 0}%</Text>
-            </View>
-          ))}
+          <BarChart
+            color={accent}
+            data={periods.map(p => ({ label: `Period ${p.period}`, value: p.percentage ?? 0 }))}
+            formatValue={(v) => `${v}%`}
+          />
         </Card>
       )}
     </>
@@ -335,16 +327,15 @@ function FeeReports({ classes, accent }: { classes: string[]; accent: string }) 
       {!loading && summary && (
         <Card>
           <Text style={styles.cardTitle}>Overall</Text>
-          <View style={styles.kpiRow}>
-            <Kpi label="Billed" value={money(summary.totalBilled)} tint={colors.sky} />
-            <Kpi label="Collected" value={money(summary.totalCollected)} tint={colors.emerald} />
-          </View>
-          <View style={styles.kpiRow}>
-            <Kpi label="Outstanding" value={money(summary.outstanding)} tint={Number(summary.outstanding) > 0 ? colors.danger : colors.emerald} />
-            <Kpi label="Collection rate" value={`${rate}%`} tint={pctTint(rate)} />
-          </View>
-          <View style={styles.barTrack}>
-            <View style={[styles.barFill, { width: `${Math.max(2, rate)}%`, backgroundColor: pctTint(rate) }]} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
+            <ProgressRing value={rate} size={84} thickness={9} color={pctTint(rate)} label="Collected" />
+            <View style={{ flex: 1, gap: spacing.sm }}>
+              <View style={styles.kpiRow}>
+                <Kpi label="Billed" value={money(summary.totalBilled)} tint={colors.sky} />
+                <Kpi label="Collected" value={money(summary.totalCollected)} tint={colors.emerald} />
+              </View>
+              <Kpi label="Outstanding" value={money(summary.outstanding)} tint={Number(summary.outstanding) > 0 ? colors.danger : colors.emerald} />
+            </View>
           </View>
         </Card>
       )}
@@ -370,13 +361,16 @@ function FeeReports({ classes, accent }: { classes: string[]; accent: string }) 
           </View>
           {(collection.byMethod ?? []).length === 0
             ? <Text style={styles.muted}>No payments in this range.</Text>
-            : (collection.byMethod ?? []).map((m: any, i: number) => (
-              <View key={i} style={styles.methodRow}>
-                <Text style={styles.methodName}>{labelForStatus(String(m.method ?? ''))}</Text>
-                <Text style={styles.methodCount}>{m.count}</Text>
-                <Text style={styles.methodTotal}>{money(m.total)}</Text>
-              </View>
-            ))}
+            : (
+              <BarChart
+                color={accent}
+                formatValue={(v) => money(v)}
+                data={(collection.byMethod ?? []).map((m: any) => ({
+                  label: `${labelForStatus(String(m.method ?? ''))} (${m.count})`,
+                  value: Number(m.total ?? 0),
+                }))}
+              />
+            )}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>{money(collection.total)}</Text>
@@ -528,8 +522,6 @@ const styles = StyleSheet.create({
   kpiValue: { ...font.h3, fontWeight: '800' },
   kpiLabel: { ...font.caption, color: colors.muted, textTransform: 'none', letterSpacing: 0 },
 
-  pctBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  pctLabel: { ...font.label, color: colors.muted },
   pctBig: { ...font.h2, fontWeight: '800' },
 
   studentRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 8,
@@ -538,18 +530,6 @@ const styles = StyleSheet.create({
   sName: { ...font.body, color: colors.ink, fontWeight: '600' },
   sSub: { ...font.caption, color: colors.muted, textTransform: 'none', letterSpacing: 0, marginTop: 1 },
   sPct: { ...font.title, fontWeight: '800' },
-
-  trendRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5 },
-  trendDate: { ...font.caption, color: colors.slate, width: 78, textTransform: 'none', letterSpacing: 0 },
-  trendPct: { ...font.label, fontWeight: '700', width: 46, textAlign: 'right' },
-  barTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
-  barFill: { height: 8, borderRadius: 4 },
-
-  methodRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: colors.line },
-  methodName: { ...font.body, color: colors.ink, flex: 1 },
-  methodCount: { ...font.label, color: colors.muted, width: 40, textAlign: 'right' },
-  methodTotal: { ...font.body, color: colors.ink, fontWeight: '700', width: 110, textAlign: 'right' },
 
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm },
   totalLabel: { ...font.title, color: colors.primary },
