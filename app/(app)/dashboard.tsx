@@ -10,8 +10,10 @@ import { useAuth } from '@/lib/auth';
 import { can as hasPrivilege } from '@/lib/privileges';
 import { useI18n } from '@/i18n';
 import { API } from '@/lib/api';
-import { colors, spacing, font, radius, roleAccent, roleLabel, moduleColor } from '@/theme';
+import { localDate } from '@/lib/schoolConfig';
+import { colors, spacing, font, radius, shadow, roleAccent, roleLabel, moduleColor } from '@/theme';
 import { ColophonPanel, GOLD } from '@/components/colophon';
+import { ProgressRing } from '@/components/charts';
 
 export default function Dashboard() {
   const { user, school } = useAuth();
@@ -25,12 +27,16 @@ export default function Dashboard() {
   const [pendingPolls, setPendingPolls] = useState<any[]>([]);
   const [notices, setNotices] = useState<any[]>([]);
   const [birthdays, setBirthdays] = useState<any[]>([]);
+  const [todayAttendance, setTodayAttendance] = useState<any>(null);
 
   const canSeeBirthdays = hasPrivilege(user, 'birthday:view');
+  // Same report the Reports screen uses — surfacing it here too so the
+  // person leading the day doesn't have to leave the dashboard to see it.
+  const canSeeAttendance = hasPrivilege(user, 'attendance:report');
 
   const load = useCallback(async () => {
     try {
-      const [s, f, pl, nt, bd] = await Promise.allSettled([
+      const [s, f, pl, nt, bd, ta] = await Promise.allSettled([
         API.get('/api/students?limit=1'),
         API.get('/api/invoices/reports/summary'),
         API.get('/api/polls'),
@@ -40,6 +46,9 @@ export default function Dashboard() {
         // rolls the list over at 18:30 IST and shows tomorrow's birthdays.
         canSeeBirthdays
           ? API.get(`/api/birthdays?days=7&tzOffsetMinutes=${-new Date().getTimezoneOffset()}`)
+          : Promise.resolve(null),
+        canSeeAttendance
+          ? API.get(`/api/attendance/reports/daily-summary?date=${localDate()}&mode=daily`)
           : Promise.resolve(null),
       ]);
       const next: any = {};
@@ -54,9 +63,10 @@ export default function Dashboard() {
         setNotices(list);
       }
       if (bd.status === 'fulfilled' && bd.value) setBirthdays(bd.value.today ?? []);
+      if (ta.status === 'fulfilled' && ta.value) setTodayAttendance(ta.value);
       setStats(next);
     } catch {}
-  }, [canSeeBirthdays]);
+  }, [canSeeBirthdays, canSeeAttendance]);
   useEffect(() => { load(); }, [load]);
   const onRefresh = useCallback(async () => { setRefreshing(true); await load(); setRefreshing(false); }, [load]);
 
@@ -130,16 +140,43 @@ export default function Dashboard() {
           {/* Stats */}
           <View style={styles.statRow}>
             <TouchableOpacity style={styles.statCard} activeOpacity={0.7} onPress={() => router.push('/(app)/students' as any)}>
-              <Text style={styles.statLabel}>Students</Text>
+              <View style={[styles.statIcon, { backgroundColor: moduleColor('students') + '14' }]}>
+                <Ionicons name="people" size={16} color={moduleColor('students')} />
+              </View>
               <Text style={styles.statValue}>{stats.students ?? '—'}</Text>
+              <Text style={styles.statLabel}>Students</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.statCard} activeOpacity={0.7} onPress={() => router.push('/(app)/fees' as any)}>
-              <Text style={styles.statLabel}>Outstanding</Text>
+              <View style={[styles.statIcon, { backgroundColor: colors.warning + '14' }]}>
+                <Ionicons name="wallet" size={16} color={colors.warning} />
+              </View>
               <Text style={[styles.statValue, !!stats.feesOutstanding && { color: colors.warning }]}>
                 {stats.feesOutstanding != null ? `₹${Number(stats.feesOutstanding).toLocaleString('en-IN')}` : '—'}
               </Text>
+              <Text style={styles.statLabel}>Outstanding</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Today's attendance, at a glance — same data the Reports screen
+              pulls from, surfaced here so whoever runs the day's attendance
+              doesn't have to leave the dashboard to see how it's tracking. */}
+          {canSeeAttendance && todayAttendance && (
+            <TouchableOpacity style={styles.attendanceCard} activeOpacity={0.85} onPress={() => router.push('/(app)/reports' as any)}>
+              <ProgressRing
+                value={todayAttendance.percentage ?? 0}
+                size={64} thickness={7}
+                color={(todayAttendance.percentage ?? 0) >= 85 ? colors.emerald : (todayAttendance.percentage ?? 0) >= 70 ? colors.amber : colors.danger}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>Today's attendance</Text>
+                <Text style={styles.cardSub}>
+                  {todayAttendance.present ?? 0} present · {todayAttendance.absent ?? 0} absent
+                  {(todayAttendance.late ?? 0) > 0 ? ` · ${todayAttendance.late} late` : ''}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            </TouchableOpacity>
+          )}
 
           {(pendingPolls.length > 0 || (canSeeBirthdays && birthdays.length > 0) || notices.length > 0) && (
             <Text style={styles.eyebrow}>Needs attention</Text>
@@ -250,10 +287,17 @@ const styles = StyleSheet.create({
   statRow: { flexDirection: 'row', gap: spacing.sm },
   statCard: {
     flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.line, padding: spacing.lg,
+    borderWidth: 1, borderColor: colors.line, padding: spacing.lg, ...shadow.card,
   },
+  statIcon: { width: 30, height: 30, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
   statLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: colors.muted, textTransform: 'uppercase' },
-  statValue: { ...font.h1, color: colors.ink, marginTop: spacing.sm },
+  statValue: { ...font.h1, color: colors.ink, marginTop: 2 },
+
+  attendanceCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.lg, backgroundColor: colors.surface,
+    borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg,
+    marginTop: spacing.sm, ...shadow.card,
+  },
 
   eyebrow: {
     fontSize: 10, fontWeight: '700', letterSpacing: 1.4, color: colors.muted,
