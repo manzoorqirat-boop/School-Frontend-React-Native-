@@ -9,6 +9,14 @@ import { homeForRole } from '@/lib/api';
 import { View, ActivityIndicator } from 'react-native';
 import { colors } from '@/theme';
 
+// Routes reachable regardless of auth state — never redirected either way.
+// A privacy policy has to be readable by someone who isn't signed in yet
+// (Play Store reviewers, a prospective parent) AND by someone who is (the
+// in-app link from Settings), so it can't live inside (auth) — that group
+// bounces a signed-in user straight back to their dashboard — or inside
+// (app), which bounces a signed-out user to login.
+const PUBLIC_ROUTES = new Set(['privacy-policy']);
+
 // Route guard: redirects between (auth) and (app) based on session.
 function Guard() {
   const { ready, user } = useAuth();
@@ -23,6 +31,7 @@ function Guard() {
 
   useEffect(() => {
     if (!ready) return;
+    if (PUBLIC_ROUTES.has(segments[0])) { lastNav.current = null; return; }
     const inAuth = segments[0] === '(auth)';
 
     // Nothing to do — clear the latch so a future genuine change can navigate.
