@@ -4,12 +4,14 @@ import {
   ScrollView, TouchableOpacity, Alert, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, font } from '@/theme';
 
 export default function Login() {
   const { signIn } = useAuth();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [slug, setSlug] = useState('');
   const [username, setUsername] = useState('');
@@ -76,7 +78,10 @@ export default function Login() {
         </TouchableOpacity>
 
         <View style={{ flex: 1 }} />
-        <Text style={styles.foot}>Secured with end-to-end encryption</Text>
+        <Text style={styles.foot}>Your data is encrypted in transit and stored securely on this device</Text>
+        <TouchableOpacity onPress={() => router.push('/privacy-policy')} hitSlop={8} style={{ alignSelf: 'center', marginTop: spacing.sm }}>
+          <Text style={styles.privacyLink}>Privacy Policy</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -93,4 +98,5 @@ const styles = StyleSheet.create({
   button: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.primary, height: 50, borderRadius: radius.md, marginTop: spacing.xl },
   buttonText: { color: colors.white, fontSize: 15, fontWeight: '600', letterSpacing: -0.1 },
   foot: { ...font.caption, color: colors.muted, textAlign: 'center', textTransform: 'none', letterSpacing: 0 },
+  privacyLink: { ...font.caption, color: colors.primary, textTransform: 'none', letterSpacing: 0, fontWeight: '700' },
 });
