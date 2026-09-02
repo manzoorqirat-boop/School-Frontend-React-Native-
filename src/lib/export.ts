@@ -1,4 +1,7 @@
-import * as FileSystem from 'expo-file-system';
+// SDK 54 split expo-file-system into a new File/Directory-class API (root
+// import) and the old path-string API this file uses, which now lives under
+// /legacy. Same functions, same signatures — only the import path changed.
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 // Mobile export: write content to a cache file, then open the OS share sheet
@@ -47,11 +50,13 @@ export async function exportHTML(filename: string, title: string, bodyHtml: stri
 
 // Escape before interpolating into HTML.
 //
-// The .NET backend does NOT strip HTML from input the way the Node backend did
-// (app.use(sanitizeBody)), so a student name really can contain a <script> tag.
-// React and React Native escape on render, so the app itself is safe — but an
-// exported .html file opened in a browser is not. Without this, a stored
-// payload executes the moment someone opens the export.
+// The .NET backend's SanitizeBodyMiddleware strips HTML from free-text fields
+// on the way in, and React/React Native escape on render — but this export
+// path builds a raw HTML string by hand, outside any of that. Defense in
+// depth: even if a tag ever reached storage (a field on the Skip list, a
+// row written before the middleware existed, a future endpoint that misses
+// it), this stops it from executing the moment someone opens the exported
+// file in a browser.
 function esc(v: unknown): string {
   return String(v ?? '')
     .replace(/&/g, '&amp;')
