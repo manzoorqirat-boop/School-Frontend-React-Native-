@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { API, SessionUser } from './api';
+import { registerForPush, unregisterPush } from './push';
 
 type AuthState = {
   ready: boolean;              // finished reading stored session
