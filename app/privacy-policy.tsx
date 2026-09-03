@@ -10,18 +10,19 @@ import { colors, spacing, font, radius } from '@/theme';
  * school) and Settings (an existing user).
  *
  * IMPORTANT — this is a functional DRAFT, not legal advice:
- *   1. Replace PRIVACY_CONTACT_EMAIL below with a real, monitored address.
- *   2. Have this reviewed by someone who can speak to your actual retention
- *      practices and, ideally, local counsel — this covers the data model as
- *      built, but data-protection obligations vary by state/country and this
- *      does not know your jurisdiction.
- *   3. Google Play's Data Safety form and the "Privacy policy" field in Play
- *      Console both require a PUBLIC URL, not just in-app text. Host this
- *      same content somewhere reachable without the app (e.g. a page on your
- *      school's own site) and put that URL in Play Console. The copy below is
- *      written so it can be pasted there directly.
+ *   1. This is a functional DRAFT of the policy text, not legal advice —
+ *      have it reviewed by someone who can speak to your actual retention
+ *      practices and, ideally, local counsel.
+ *   2. The canonical public copy is hosted by the backend at
+ *      /privacy-policy.html (see wwwroot/privacy-policy.html in the
+ *      School.net repo) — that URL, not this in-app screen, is what goes in
+ *      Google Play Console's "Privacy policy" field and Data Safety form.
+ *      Keep the two in sync if either changes.
+ *   3. PRIVACY_CONTACT_EMAIL below is noreply@qmsofts.com — confirm that
+ *      inbox actually receives and is monitored, since this screen and the
+ *      hosted page both promise people can email in a data request.
  */
-const PRIVACY_CONTACT_EMAIL = 'privacy@qmsofts.school'; // ← replace before publishing
+const PRIVACY_CONTACT_EMAIL = 'noreply@qmsofts.com';
 const LAST_UPDATED = 'September 2026';
 
 export default function PrivacyPolicy() {
@@ -54,10 +55,12 @@ export default function PrivacyPolicy() {
         This app is used to manage school records for students, some of whom are
         children under 13. Student accounts and the records tied to them are
         created and controlled by the school, acting as the data controller —
-        the school, not a parent acting alone, provisions student logins.
-        Parents and guardians can contact the school directly, or use the
-        contact details below, to review, correct, or request deletion of a
-        child's data.
+        the school, not a parent acting alone, provisions student logins. In
+        practice, a student's account is intended to be operated by, or
+        together with, their parent or guardian rather than by a young child
+        independently. Parents and guardians can contact the school directly,
+        or use the contact details below, to review, correct, or request
+        deletion of a child's data.
       </P>
 
       <H>How information is used</H>
